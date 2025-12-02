@@ -17,7 +17,8 @@ import {
   LayoutTemplate,
   LayoutDashboard,
   FolderPlus,
-  Sparkles
+  Sparkles,
+  Network
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -71,7 +72,8 @@ const initialNavigation: NavItem[] = [
     ]
   },
   { name: 'Users', href: '/users', icon: User, iconColor: 'text-gray-700' },
-  { name: 'Teams', href: '/teams', icon: Users, iconColor: 'text-gray-700' }
+  { name: 'Teams', href: '/teams', icon: Users, iconColor: 'text-gray-700' },
+  { name: 'Data Model', href: '/admin/data-model', icon: Network, iconColor: 'text-gray-700' }
 ]
 
 export function Sidebar() {

@@ -1,0 +1,176 @@
+// Prisma Schema for IDP Authentication System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model - represents authenticated users
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  avatar    String?
+  provider  String   // "google", "github", etc.
+  providerId String  // OAuth provider ID
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  organizations UserOrganization[]
+  tenants       UserTenant[]
+  createdInvitations Invitation[] @relation("InvitationCreatedBy")
+  accounts      Account[]
+
+  @@unique([provider, providerId])
+  @@index([email])
+}
+
+// Account model - linked OAuth accounts
+model Account {
+  id        String   @id @default(cuid())
+  userId    String
+  provider  String
+  providerId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+// Organization model - top-level grouping
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  logoUrl     String?
+  settings    Json?    // Store flexible settings
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  members     UserOrganization[]
+  tenants     Tenant[]
+  invitations Invitation[]
+
+  @@index([slug])
+}
+
+// Tenant model - workspaces/environments within an organization
+model Tenant {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String
+  description    String?
+  organizationId String
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users        UserTenant[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+}
+
+// Join table for User-Organization relationship with roles
+model UserOrganization {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  role           String   @default("member") // "owner", "admin", "member"
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+// Join table for User-Tenant relationship
+model UserTenant {
+  id        String   @id @default(cuid())
+  userId    String
+  tenantId  String
+  role      String   @default("member") // tenant-level permissions
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId])
+  @@index([userId])
+  @@index([tenantId])
+}
+
+// Invitation model for inviting users to organizations
+model Invitation {
+  id             String   @id @default(cuid())
+  email          String
+  organizationId String
+  role           String   @default("member")
+  token          String   @unique
+  status         String   @default("pending") // "pending", "accepted", "expired", "revoked"
+  expiresAt      DateTime
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation("InvitationCreatedBy", fields: [createdById], references: [id])
+
+  @@index([email])
+  @@index([token])
+  @@index([organizationId])
+}
+
+// Blueprint model
+model Blueprint {
+  id          String   @id @default(cuid())
+  title       String
+  identifier  String   @unique
+  icon        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  properties  BlueprintProperty[]
+}
+
+// BlueprintProperty model
+model BlueprintProperty {
+  id          String   @id @default(cuid())
+  blueprintId String
+  title       String
+  identifier  String
+  type        String
+  required    Boolean  @default(false)
+  description String?
+  icon        String?
+  defaultValue String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  blueprint   Blueprint @relation(fields: [blueprintId], references: [id], onDelete: Cascade)
+
+  @@unique([blueprintId, identifier])
+  @@index([blueprintId])
+}

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { X, Info } from 'lucide-react'
 import { clsx } from 'clsx'
+import { useAuth } from '@/contexts/AuthContext'
+import { organizationsApi } from '@/services/api'
 
 interface OrganizationSettingsModalProps {
     isOpen: boolean
@@ -10,8 +12,11 @@ interface OrganizationSettingsModalProps {
 type TabType = 'Logo' | 'Settings' | 'AI' | 'Announcement' | 'Port Support Access'
 
 export function OrganizationSettingsModal({ isOpen, onClose }: OrganizationSettingsModalProps) {
+    const { currentOrganization, refreshUser } = useAuth()
     const [activeTab, setActiveTab] = useState<TabType>('Logo')
-    const [title, setTitle] = useState('Port')
+
+    // Form State
+    const [title, setTitle] = useState('')
     const [logoUrl, setLogoUrl] = useState('')
     const [autoUserAccess, setAutoUserAccess] = useState(false)
     const [enableAnnouncement, setEnableAnnouncement] = useState(false)
@@ -19,6 +24,26 @@ export function OrganizationSettingsModal({ isOpen, onClose }: OrganizationSetti
     const [announcementLink, setAnnouncementLink] = useState('')
     const [enableSupportAccess, setEnableSupportAccess] = useState(true)
     const [accessDuration, setAccessDuration] = useState('Indefinitely')
+
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+
+    // Load organization data
+    useEffect(() => {
+        if (isOpen && currentOrganization) {
+            setTitle(currentOrganization.name || '')
+            setLogoUrl(currentOrganization.logoUrl || '')
+
+            // Load settings if they exist
+            const settings = currentOrganization.settings as any || {}
+            setAutoUserAccess(settings.autoUserAccess || false)
+            setEnableAnnouncement(settings.enableAnnouncement || false)
+            setAnnouncement(settings.announcement || '')
+            setAnnouncementLink(settings.announcementLink || '')
+            setEnableSupportAccess(settings.enableSupportAccess ?? true)
+            setAccessDuration(settings.accessDuration || 'Indefinitely')
+        }
+    }, [isOpen, currentOrganization])
 
     // Close on escape key
     useEffect(() => {
@@ -30,6 +55,37 @@ export function OrganizationSettingsModal({ isOpen, onClose }: OrganizationSetti
         window.addEventListener('keydown', handleEscape)
         return () => window.removeEventListener('keydown', handleEscape)
     }, [isOpen, onClose])
+
+    const handleSave = async () => {
+        if (!currentOrganization) return
+
+        setIsLoading(true)
+        setError(null)
+
+        try {
+            const settings = {
+                autoUserAccess,
+                enableAnnouncement,
+                announcement,
+                announcementLink,
+                enableSupportAccess,
+                accessDuration
+            }
+
+            await organizationsApi.updateOrganization(currentOrganization.id, {
+                name: title,
+                logoUrl,
+                settings
+            })
+
+            await refreshUser()
+            onClose()
+        } catch (err: any) {
+            setError(err.message || 'Failed to update organization settings')
+        } finally {
+            setIsLoading(false)
+        }
+    }
 
     if (!isOpen) return null
 
@@ -73,6 +129,12 @@ export function OrganizationSettingsModal({ isOpen, onClose }: OrganizationSetti
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto px-6 py-6">
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md text-sm">
+                            {error}
+                        </div>
+                    )}
+
                     {/* Logo Tab */}
                     {activeTab === 'Logo' && (
                         <div className="space-y-6">
@@ -105,20 +167,28 @@ export function OrganizationSettingsModal({ isOpen, onClose }: OrganizationSetti
 
                                 {/* Light theme preview */}
                                 <div className="mb-3 p-4 bg-gray-50 rounded-md flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-white rounded flex items-center justify-center flex-shrink-0">
-                                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M7 7h10v10H7z" />
-                                        </svg>
+                                    <div className="w-8 h-8 bg-white rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                        {logoUrl ? (
+                                            <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                                        ) : (
+                                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M7 7h10v10H7z" />
+                                            </svg>
+                                        )}
                                     </div>
                                     <span className="text-sm font-medium text-gray-900">{title}</span>
                                 </div>
 
                                 {/* Dark theme preview */}
                                 <div className="p-4 bg-gray-900 rounded-md flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-white rounded flex items-center justify-center flex-shrink-0">
-                                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M7 7h10v10H7z" />
-                                        </svg>
+                                    <div className="w-8 h-8 bg-white rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                        {logoUrl ? (
+                                            <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                                        ) : (
+                                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M7 7h10v10H7z" />
+                                            </svg>
+                                        )}
                                     </div>
                                     <span className="text-sm font-medium text-white">{title}</span>
                                 </div>
@@ -301,8 +371,17 @@ export function OrganizationSettingsModal({ isOpen, onClose }: OrganizationSetti
 
                 {/* Footer */}
                 <div className="flex justify-end px-6 py-4 border-t flex-shrink-0">
-                    <button className="px-4 py-2 bg-gray-200 text-gray-400 text-sm font-medium rounded-md cursor-not-allowed">
-                        Save
+                    <button
+                        onClick={handleSave}
+                        disabled={isLoading}
+                        className={clsx(
+                            "px-4 py-2 text-sm font-medium rounded-md transition-colors",
+                            isLoading
+                                ? "bg-blue-400 text-white cursor-not-allowed"
+                                : "bg-blue-600 text-white hover:bg-blue-700"
+                        )}
+                    >
+                        {isLoading ? 'Saving...' : 'Save'}
                     </button>
                 </div>
             </div>

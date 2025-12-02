@@ -1,6 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Activity, Search, UserPlus, User, Settings, Home, Database, Rocket } from 'lucide-react'
+import { Activity, Search, UserPlus, Settings, Home, Database, Rocket } from 'lucide-react'
 import { clsx } from 'clsx'
+import { UserMenu } from './UserMenu'
+import { useAuth } from '@/contexts/AuthContext'
 
 const navItems = [
   { name: 'Home', href: '/dashboard', icon: Home },
@@ -10,6 +12,7 @@ const navItems = [
 
 export function Header() {
   const navigate = useNavigate()
+  const { isAuthenticated, currentOrganization } = useAuth()
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white">
@@ -18,12 +21,22 @@ export function Header() {
         <div className="flex items-center gap-6">
           {/* Logo */}
           <div className="flex items-center gap-2 pr-4 border-r border-gray-200">
-            <div className="h-7 w-7 rounded bg-gray-900 flex items-center justify-center">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M8 2L12 6L8 10L4 6L8 2Z" fill="white" />
-              </svg>
-            </div>
-            <span className="text-sm font-semibold text-gray-900">Port</span>
+            {currentOrganization?.logoUrl ? (
+              <img
+                src={currentOrganization.logoUrl}
+                alt={currentOrganization.name}
+                className="h-7 w-auto max-w-[100px] object-contain"
+              />
+            ) : (
+              <div className="h-7 w-7 rounded bg-gray-900 flex items-center justify-center">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M8 2L12 6L8 10L4 6L8 2Z" fill="white" />
+                </svg>
+              </div>
+            )}
+            <span className="text-sm font-semibold text-gray-900">
+              {currentOrganization?.name || 'Port'}
+            </span>
           </div>
 
           {/* Navigation Items */}
@@ -108,14 +121,8 @@ export function Header() {
             </svg>
           </button>
 
-          {/* Profile Photo */}
-          <button className="p-0 hover:opacity-80 transition-opacity">
-            <img
-              src="https://api.dicebear.com/7.x/avataaars/svg?seed=User"
-              alt="Profile"
-              className="h-8 w-8 rounded-full bg-gray-200"
-            />
-          </button>
+          {/* User Menu (replaces static profile photo) */}
+          {isAuthenticated && <UserMenu />}
         </div>
       </div>
     </header>
