@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
+import { useQueryClient, useQuery } from '@tanstack/react-query'
 import ReactFlow, {
-    Node,
     Edge,
     Controls,
     Background,
@@ -19,14 +19,18 @@ import {
     Plus,
     Grid3x3,
     Network,
-    Box,
     Maximize2,
-    Search
+    Search,
+    Trash2,
+    Link2,
+    Settings
 } from 'lucide-react'
 import { BlueprintCreationModal } from '../../components/datamodel/BlueprintCreationModal'
 import { BlueprintEditorModal } from '../../components/datamodel/BlueprintEditorModal'
-import { Blueprint, BlueprintProperty } from '@/types/blueprint'
+import { ConfirmDeleteModal } from '../../components/datamodel/ConfirmDeleteModal'
+import { Blueprint } from '@/types/blueprint'
 import { blueprintApi } from '@/services/blueprint.service'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface CustomNodeData {
     blueprint: Blueprint
@@ -40,8 +44,8 @@ function CustomNode({ data }: NodeProps<CustomNodeData>) {
             <Handle type="target" position={Position.Left} className="w-2 h-2 !bg-gray-300" />
 
             <div className="flex items-center gap-3">
-                <div className="p-2 bg-pink-50 rounded-md">
-                    <Box className="w-5 h-5 text-pink-500" />
+                <div className="p-2 bg-pink-50 rounded-md flex items-center justify-center">
+                    <span className="text-xl">{data.blueprint.icon || '📦'}</span>
                 </div>
                 <span className="font-medium text-gray-900">{data.blueprint.title}</span>
             </div>
@@ -68,11 +72,20 @@ const nodeTypes = {
 const initialEdges: Edge[] = []
 
 export function DataModelPage() {
+    const queryClient = useQueryClient()
     const [viewMode, setViewMode] = useState<'graph' | 'cards'>('graph')
     const [isCreationModalOpen, setIsCreationModalOpen] = useState(false)
     const [editingBlueprint, setEditingBlueprint] = useState<Blueprint | null>(null)
-    const [blueprints, setBlueprints] = useState<Blueprint[]>([])
-    const [isLoading, setIsLoading] = useState(true)
+    const [blueprintToDelete, setBlueprintToDelete] = useState<Blueprint | null>(null)
+
+    const { currentOrganization, currentTenant } = useAuth()
+
+    // Fetch blueprints using React Query
+    const { data: blueprints = [], isLoading } = useQuery({
+        queryKey: ['blueprints', currentOrganization?.id, currentTenant?.id],
+        queryFn: () => blueprintApi.getAll(),
+        enabled: !!currentOrganization && !!currentTenant
+    })
 
     const [nodes, setNodes, onNodesChange] = useNodesState([])
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
@@ -82,108 +95,118 @@ export function DataModelPage() {
         [setEdges]
     )
 
-    // Fetch blueprints on mount and reconstruct edges from relations
+    // Reconstruct nodes and edges when blueprints change
     useEffect(() => {
-        const loadBlueprints = async () => {
-            try {
-                const data = await blueprintApi.getAll()
-                setBlueprints(data)
 
-                // Convert to ReactFlow nodes
-                const flowNodes = data.map((blueprint, index) => ({
-                    id: blueprint.id,
-                    type: 'custom' as const,
-                    position: { x: 100 + (index % 3) * 300, y: 100 + Math.floor(index / 3) * 150 },
-                    data: {
-                        blueprint,
-                        onMaximize: () => setEditingBlueprint(blueprint)
-                    }
-                }))
-                setNodes(flowNodes)
-
-                // Rebuild edges from relation properties
-                const relationEdges: Edge[] = []
-                data.forEach(blueprint => {
-                    blueprint.properties.forEach(prop => {
-                        if (prop.type === 'Relation' && prop.defaultValue) {
-                            relationEdges.push({
-                                id: `${blueprint.id}-${prop.defaultValue}-${prop.id}`,
-                                source: blueprint.id,
-                                target: prop.defaultValue,
-                                label: prop.title,
-                                type: 'default',
-                                animated: false
-                            })
-                        }
-                    })
-                })
-                setEdges(relationEdges)
-            } catch (error) {
-                console.error('Failed to load blueprints:', error)
-            } finally {
-                setIsLoading(false)
+        // Convert to ReactFlow nodes
+        const flowNodes = blueprints.map((blueprint, index) => ({
+            id: blueprint.identifier,
+            type: 'custom' as const,
+            position: { x: 100 + (index % 3) * 300, y: 100 + Math.floor(index / 3) * 150 },
+            data: {
+                blueprint,
+                onMaximize: () => setEditingBlueprint(blueprint)
             }
-        }
-        loadBlueprints()
-    }, [setNodes, setEdges])
+        }));
+
+        setNodes(flowNodes);
+
+        // Reconstruct edges from blueprint relations
+        const relationEdges: Edge[] = [];
+        blueprints.forEach((blueprint) => {
+            if (blueprint.relations && typeof blueprint.relations === 'object') {
+                Object.entries(blueprint.relations).forEach(([_relationId, relation]: [string, any]) => {
+                    if (relation.target) {
+                        relationEdges.push({
+                            id: `${blueprint.identifier}-${relation.target}`,
+                            source: blueprint.identifier,
+                            target: relation.target,
+                            type: 'default',
+                            animated: false,
+                        });
+                    }
+                });
+            }
+        });
+
+        setEdges(relationEdges);
+    }, [blueprints, setNodes, setEdges])
 
     const handleCreateBlueprint = async (blueprint: Blueprint) => {
         try {
-            const created = await blueprintApi.create({
+            await blueprintApi.create({
                 title: blueprint.title,
                 identifier: blueprint.identifier,
                 icon: blueprint.icon,
                 description: blueprint.description
-            })
+            });
 
-            setBlueprints(prev => [...prev, created])
-
-            const newNode: Node<CustomNodeData> = {
-                id: created.id,
-                type: 'custom',
-                position: { x: Math.random() * 400, y: Math.random() * 400 },
-                data: {
-                    blueprint: created,
-                    onMaximize: () => setEditingBlueprint(created)
-                }
-            }
-            setNodes((nds) => [...nds, newNode])
-            setIsCreationModalOpen(false)
+            // Invalidate queries to refetch blueprints
+            queryClient.invalidateQueries({ queryKey: ['blueprints'] });
+            setIsCreationModalOpen(false);
         } catch (error) {
-            console.error('Failed to create blueprint:', error)
+            console.error('Failed to create blueprint:', error);
         }
     }
 
-    const handleUpdateBlueprint = (updatedBlueprint: Blueprint) => {
-        setBlueprints(prev => prev.map(b => b.id === updatedBlueprint.id ? updatedBlueprint : b))
-        setNodes((nds) => nds.map(node => {
-            if (node.id === updatedBlueprint.id) {
-                return {
-                    ...node,
-                    data: {
-                        ...node.data,
-                        blueprint: updatedBlueprint,
-                        onMaximize: () => setEditingBlueprint(updatedBlueprint)
+    const handleUpdateBlueprint = async (updatedBlueprint: Blueprint) => {
+        try {
+            // Invalidate queries to refetch blueprints
+            queryClient.invalidateQueries({ queryKey: ['blueprints'] });
+            setNodes((nds) => nds.map(node => {
+                if (node.id === updatedBlueprint.identifier) {
+                    return {
+                        ...node,
+                        data: {
+                            ...node.data,
+                            blueprint: updatedBlueprint,
+                            onMaximize: () => setEditingBlueprint(updatedBlueprint)
+                        }
                     }
                 }
-            }
-            return node
-        }))
-        setEditingBlueprint(updatedBlueprint)
+                return node
+            }))
+            setEditingBlueprint(updatedBlueprint)
+
+            // Persist to backend
+            await blueprintApi.update(updatedBlueprint.identifier, updatedBlueprint)
+        } catch (error) {
+            console.error('Failed to update blueprint:', error)
+            // Revert changes if needed (could re-fetch or use previous state)
+            // For now, we'll just log the error as a full revert strategy is more complex
+            alert('Failed to save changes to the server.')
+        }
     }
 
-    const handleAddProperty = async (property: Omit<BlueprintProperty, 'id' | 'blueprintId' | 'createdAt' | 'updatedAt'>) => {
+    const handleAddProperty = async (property: any) => {
+        console.log('[blueprintApi] Adding property:', property);
         if (!editingBlueprint) return
 
+        // Extract identifier and required which are handled separately in the schema
+        const { identifier, required, ...propertyFields } = property;
+
         try {
-            const createdProperty = await blueprintApi.addProperty(editingBlueprint.id, property)
+            const updatedSchema = {
+                ...editingBlueprint.schema,
+                properties: {
+                    ...editingBlueprint.schema.properties,
+                    [identifier]: propertyFields
+                },
+                required: required
+                    ? [...(editingBlueprint.schema.required || []), identifier]
+                    : editingBlueprint.schema.required
+            }
             const updatedBlueprint = {
                 ...editingBlueprint,
-                properties: [...editingBlueprint.properties, createdProperty]
+                schema: updatedSchema
             }
+            console.log('[blueprintApi] Updating blueprint with identifier:', editingBlueprint.identifier);
+            console.log('[blueprintApi] Blueprint data:', updatedBlueprint);
+            await blueprintApi.update(editingBlueprint.identifier, updatedBlueprint)
             handleUpdateBlueprint(updatedBlueprint)
         } catch (error) {
             console.error('Failed to add property:', error)
+            throw error;
         }
     }
 
@@ -191,20 +214,21 @@ export function DataModelPage() {
         if (!editingBlueprint) return
 
         try {
-            // Add relation as a property
-            const createdProperty = await blueprintApi.addProperty(editingBlueprint.id, {
-                title: relation.title,
-                identifier: relation.identifier,
-                type: 'Relation',
-                required: relation.required,
-                description: `${relation.description || ''} | Limit: ${relation.limit}`,
-                defaultValue: relation.targetBlueprintId // Store target blueprint ID
-            })
+            // Add relation to relations object
+            const updatedRelations = {
+                ...editingBlueprint.relations,
+                [relation.identifier]: {
+                    title: relation.title,
+                    target: relation.targetBlueprintId,
+                    required: relation.required,
+                    many: relation.limit === 'Many entities'
+                }
+            }
 
             // Create edge in ReactFlow
             const newEdge: Edge = {
-                id: `${editingBlueprint.id}-${relation.targetBlueprintId}-${createdProperty.id}`,
-                source: editingBlueprint.id,
+                id: `${editingBlueprint.identifier}-${relation.targetBlueprintId}-${relation.identifier}`,
+                source: editingBlueprint.identifier,
                 target: relation.targetBlueprintId,
                 label: relation.title,
                 type: 'default',
@@ -212,8 +236,12 @@ export function DataModelPage() {
             }
             setEdges(eds => [...eds, newEdge])
 
-            // Refresh the blueprint to show the new property
-            const updatedBlueprint = await blueprintApi.getById(editingBlueprint.id)
+            // Update the blueprint
+            const updatedBlueprint = {
+                ...editingBlueprint,
+                relations: updatedRelations
+            }
+            await blueprintApi.update(editingBlueprint.identifier, updatedBlueprint)
             handleUpdateBlueprint(updatedBlueprint)
         } catch (error) {
             console.error('Failed to add relation:', error)
@@ -224,27 +252,80 @@ export function DataModelPage() {
         if (!editingBlueprint) return
 
         try {
-            // Get the property to check if it's a relation
-            const property = editingBlueprint.properties.find(p => p.id === propertyId)
+            // Remove from schema properties
+            const updatedProperties = { ...editingBlueprint.schema.properties }
+            delete updatedProperties[propertyId]
 
-            // Delete the property
-            await blueprintApi.deleteProperty(propertyId)
-
-            // If it's a relation, remove the edge from the graph
-            if (property && property.type === 'Relation') {
-                setEdges(eds => eds.filter(edge =>
-                    !(edge.source === editingBlueprint.id && edge.id.includes(propertyId))
-                ))
+            const updatedSchema = {
+                ...editingBlueprint.schema,
+                properties: updatedProperties,
+                required: editingBlueprint.schema.required?.filter(r => r !== propertyId) || []
             }
 
-            // Update the blueprint
             const updatedBlueprint = {
                 ...editingBlueprint,
-                properties: editingBlueprint.properties.filter(p => p.id !== propertyId)
+                schema: updatedSchema
             }
+            await blueprintApi.update(editingBlueprint.identifier, updatedBlueprint)
             handleUpdateBlueprint(updatedBlueprint)
         } catch (error) {
             console.error('Failed to delete property:', error)
+        }
+    }
+
+    const handleUpdateProperty = async (propertyId: string, propertyData: any) => {
+        if (!editingBlueprint) return
+
+        try {
+            // Update property in schema
+            const updatedProperties = {
+                ...editingBlueprint.schema.properties,
+                [propertyId]: {
+                    ...editingBlueprint.schema.properties[propertyId],
+                    ...propertyData
+                }
+            }
+
+            const updatedBlueprint = {
+                ...editingBlueprint,
+                schema: {
+                    ...editingBlueprint.schema,
+                    properties: updatedProperties
+                }
+            }
+            await blueprintApi.update(editingBlueprint.identifier, updatedBlueprint)
+            handleUpdateBlueprint(updatedBlueprint)
+        } catch (error) {
+            console.error('Failed to update property:', error)
+            throw error;
+        }
+    }
+
+    const handleDeleteBlueprint = async () => {
+        console.log('[handleDeleteBlueprint] Called');
+        if (!editingBlueprint) {
+            console.log('[handleDeleteBlueprint] No editing blueprint');
+            return;
+        }
+
+        console.log('[handleDeleteBlueprint] Deleting:', editingBlueprint.identifier, editingBlueprint.title);
+        setBlueprintToDelete(editingBlueprint);
+    }
+
+    const confirmDelete = async () => {
+        if (!blueprintToDelete) return;
+
+        console.log('[confirmDelete] User confirmed, calling blueprintApi.delete');
+        try {
+            await blueprintApi.delete(blueprintToDelete.identifier);
+            console.log('[confirmDelete] Delete successful, invalidating queries');
+            queryClient.invalidateQueries({ queryKey: ['blueprints'] });
+            setEditingBlueprint(null);
+            setBlueprintToDelete(null);
+            console.log('[confirmDelete] Done');
+        } catch (error) {
+            console.error('[confirmDelete] Error:', error);
+            alert('Failed to delete blueprint: ' + (error as Error).message);
         }
     }
 
@@ -327,48 +408,108 @@ export function DataModelPage() {
                         <Background color="#e5e7eb" gap={16} size={0.5} />
                     </ReactFlow>
                 ) : (
-                    <div className="p-6 grid grid-cols-3 gap-4 overflow-y-auto h-full bg-gray-50">
-                        {blueprints.map((blueprint) => (
-                            <div
-                                key={blueprint.id}
-                                className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer"
-                                onClick={() => setEditingBlueprint(blueprint)}
-                            >
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="p-2 bg-pink-50 rounded-md">
-                                        <Box className="w-6 h-6 text-pink-500" />
+                    <div className="h-full overflow-y-auto bg-gray-50 p-8">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-[1600px] mx-auto">
+                            {blueprints.map((blueprint) => (
+                                <div
+                                    key={blueprint.identifier}
+                                    className="group bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col h-full"
+                                >
+                                    {/* Large Icon Area */}
+                                    <div className="bg-gradient-to-b from-gray-50 to-white p-6 flex items-center justify-center min-h-[120px] border-b border-gray-100 relative">
+                                        <div className="w-14 h-14 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform duration-200">
+                                            {blueprint.icon || '📦'}
+                                        </div>
+
+                                        {/* Quick Actions Overlay */}
+                                        <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setBlueprintToDelete(blueprint);
+                                                }}
+                                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                                title="Delete Blueprint"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 className="font-semibold text-gray-900">{blueprint.title}</h3>
-                                        <p className="text-xs text-gray-500 font-mono">{blueprint.identifier}</p>
+
+                                    {/* Card Content */}
+                                    <div className="p-5 flex-1 flex flex-col">
+                                        <div className="mb-4 flex-1">
+                                            <h3 className="font-semibold text-gray-900 text-base mb-1">
+                                                {blueprint.title}
+                                            </h3>
+                                            {blueprint.description ? (
+                                                <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">
+                                                    {blueprint.description}
+                                                </p>
+                                            ) : (
+                                                <p className="text-sm text-gray-400 italic">No description provided</p>
+                                            )}
+                                        </div>
+
+                                        {/* Bottom Row */}
+                                        <div className="flex items-center justify-between pt-4 border-t border-gray-50 mt-auto">
+                                            {/* Relations Count */}
+                                            <div className="flex items-center gap-1.5 text-gray-500 bg-gray-50 px-2.5 py-1 rounded-md">
+                                                <Link2 className="w-3.5 h-3.5" />
+                                                <span className="text-xs font-medium">
+                                                    {blueprint.relations && typeof blueprint.relations === 'object'
+                                                        ? Object.keys(blueprint.relations).length
+                                                        : 0} relations
+                                                </span>
+                                            </div>
+
+                                            {/* Manage Button */}
+                                            <button
+                                                onClick={() => setEditingBlueprint(blueprint)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
+                                            >
+                                                <Settings className="w-3.5 h-3.5" />
+                                                Manage
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                                <p className="text-sm text-gray-500 line-clamp-2">{blueprint.description || 'No description'}</p>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 )}
+
+                {/* Modals */}
+                {isCreationModalOpen && (
+                    <BlueprintCreationModal
+                        onClose={() => setIsCreationModalOpen(false)}
+                        onCreate={handleCreateBlueprint}
+                    />
+                )}
+
+                {editingBlueprint && (
+                    <BlueprintEditorModal
+                        blueprint={editingBlueprint}
+                        availableBlueprints={blueprints}
+                        onClose={() => setEditingBlueprint(null)}
+                        onUpdate={handleUpdateBlueprint}
+                        onAddProperty={handleAddProperty}
+                        onUpdateProperty={handleUpdateProperty}
+                        onAddRelation={handleAddRelation}
+                        onDeleteProperty={handleDeleteProperty}
+                        onDeleteBlueprint={handleDeleteBlueprint}
+                    />
+                )}
+
+                <ConfirmDeleteModal
+                    isOpen={blueprintToDelete !== null}
+                    title="Delete Blueprint"
+                    message={`Are you sure you want to delete the blueprint "${blueprintToDelete?.title}"? This action cannot be undone.`}
+                    confirmLabel="Delete Blueprint"
+                    onConfirm={confirmDelete}
+                    onCancel={() => setBlueprintToDelete(null)}
+                />
             </div>
-
-            {/* Modals */}
-            {isCreationModalOpen && (
-                <BlueprintCreationModal
-                    onClose={() => setIsCreationModalOpen(false)}
-                    onCreate={handleCreateBlueprint}
-                />
-            )}
-
-            {editingBlueprint && (
-                <BlueprintEditorModal
-                    blueprint={editingBlueprint}
-                    availableBlueprints={blueprints}
-                    onClose={() => setEditingBlueprint(null)}
-                    onUpdate={handleUpdateBlueprint}
-                    onAddProperty={handleAddProperty}
-                    onAddRelation={handleAddRelation}
-                    onDeleteProperty={handleDeleteProperty}
-                />
-            )}
         </div>
     )
 }

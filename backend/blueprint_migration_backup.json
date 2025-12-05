@@ -1,0 +1,206 @@
+[
+  {
+    "id": "cmiobckq500059m3oa6q3t0wf",
+    "identifier": "jjj",
+    "title": "jjj",
+    "icon": "box",
+    "description": "",
+    "schema": {
+      "properties": {
+        "bb": {
+          "type": "String",
+          "title": "bb",
+          "description": "",
+          "icon": null,
+          "default": null
+        },
+        "tst": {
+          "type": "Relation",
+          "title": "tst",
+          "description": " | Limit: Many entities | Target: cmioov3if000e9m3osjkp2zof",
+          "icon": null,
+          "default": "cmioov3if000e9m3osjkp2zof"
+        }
+      },
+      "required": []
+    },
+    "relations": {},
+    "createdAt": "2025-12-02T08:25:42.894Z",
+    "updatedAt": "2025-12-02T08:25:42.894Z"
+  },
+  {
+    "id": "cmioov3if000e9m3osjkp2zof",
+    "identifier": "test",
+    "title": "test",
+    "icon": "📦",
+    "description": "",
+    "schema": {
+      "properties": {
+        "kjj": {
+          "type": "String",
+          "title": "kjj",
+          "description": "",
+          "icon": null,
+          "default": null
+        }
+      },
+      "required": []
+    },
+    "relations": {},
+    "createdAt": "2025-12-02T14:44:02.056Z",
+    "updatedAt": "2025-12-02T22:51:45.482Z"
+  },
+  {
+    "id": "cmip2wakp0000t8h21h3mcz3z",
+    "identifier": "cccc",
+    "title": "cc",
+    "icon": "🐳",
+    "description": "xxcqzd",
+    "schema": {
+      "properties": {
+        "sqdq": {
+          "type": "String",
+          "title": "sqdq",
+          "description": "",
+          "icon": null,
+          "default": null
+        },
+        "tete": {
+          "type": "String",
+          "title": "tetec",
+          "description": "",
+          "icon": null,
+          "default": null
+        },
+        "xw": {
+          "type": "Relation",
+          "title": "xw",
+          "description": " | Limit: 1 entity",
+          "icon": null,
+          "default": "cmioov3if000e9m3osjkp2zof"
+        },
+        "dd": {
+          "type": "Relation",
+          "title": "dd",
+          "description": " | Limit: 1 entity",
+          "icon": null,
+          "default": "cmiobckq500059m3oa6q3t0wf"
+        },
+        "qssq": {
+          "type": "Number",
+          "title": "qssq",
+          "description": "",
+          "icon": null,
+          "default": null
+        },
+        "kjjk": {
+          "type": "Boolean",
+          "title": "kjjk",
+          "description": "",
+          "icon": null,
+          "default": null
+        },
+        "sdfq": {
+          "type": "Array",
+          "title": "sdfq",
+          "description": "",
+          "icon": null,
+          "default": null
+        },
+        "sdsdss": {
+          "type": "Enum",
+          "title": "sdsdss",
+          "description": "",
+          "icon": null,
+          "default": null
+        },
+        "kjhj": {
+          "type": "Date & time",
+          "title": "kjhj",
+          "description": "",
+          "icon": null,
+          "default": null
+        }
+      },
+      "required": [
+        "kjjk",
+        "kjhj"
+      ]
+    },
+    "relations": {},
+    "createdAt": "2025-12-02T21:16:52.490Z",
+    "updatedAt": "2025-12-03T08:41:52.069Z"
+  },
+  {
+    "id": "cmip2f6p00000sjjpg0voujdg",
+    "identifier": "jjjbbh",
+    "title": "jjjbbh",
+    "icon": "⚡",
+    "description": "",
+    "schema": {
+      "properties": {
+        "xcd": {
+          "type": "Date & time",
+          "title": "xcd",
+          "description": "",
+          "icon": null,
+          "default": null
+        },
+        "ds": {
+          "type": "String",
+          "title": "ds",
+          "description": "",
+          "icon": null,
+          "default": null
+        }
+      },
+      "required": []
+    },
+    "relations": {},
+    "createdAt": "2025-12-02T21:03:34.309Z",
+    "updatedAt": "2025-12-02T22:29:19.956Z"
+  },
+  {
+    "id": "cmiob7u6t00009m3ocg83e7ph",
+    "identifier": "gggg",
+    "title": "ggg",
+    "icon": "📦",
+    "description": "",
+    "schema": {
+      "properties": {
+        "hhh": {
+          "type": "String",
+          "title": "hhh",
+          "description": "",
+          "icon": null,
+          "default": null
+        },
+        "id": {
+          "type": "Number",
+          "title": "id",
+          "description": "",
+          "icon": null,
+          "default": null
+        },
+        "vcxcx": {
+          "type": "Relation",
+          "title": "vcxcx",
+          "description": " | Limit: 1 entity | Target: cmiobckq500059m3oa6q3t0wf",
+          "icon": null,
+          "default": "cmiobckq500059m3oa6q3t0wf"
+        },
+        "wxwx": {
+          "type": "String",
+          "title": "wxwx",
+          "description": "",
+          "icon": null,
+          "default": null
+        }
+      },
+      "required": []
+    },
+    "relations": {},
+    "createdAt": "2025-12-02T08:22:01.876Z",
+    "updatedAt": "2025-12-03T08:42:11.212Z"
+  }
+]

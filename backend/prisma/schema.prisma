@@ -25,6 +25,7 @@ model User {
   tenants       UserTenant[]
   createdInvitations Invitation[] @relation("InvitationCreatedBy")
   accounts      Account[]
+  auditLogs     AuditLog[]
 
   @@unique([provider, providerId])
   @@index([email])
@@ -61,6 +62,8 @@ model Organization {
   members     UserOrganization[]
   tenants     Tenant[]
   invitations Invitation[]
+  auditLogs   AuditLog[]
+  blueprints  Blueprint[]
 
   @@index([slug])
 }
@@ -79,6 +82,7 @@ model Tenant {
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   users        UserTenant[]
+  blueprints   Blueprint[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -142,35 +146,225 @@ model Invitation {
   @@index([organizationId])
 }
 
-// Blueprint model
+// Blueprint model - Port.io compatible structure
 model Blueprint {
-  id          String   @id @default(cuid())
-  title       String
-  identifier  String   @unique
-  icon        String
-  description String?
+  identifier            String   @id
+  title                 String
+  icon                  String?
+  description           String?
+  
+  // Schema definition (properties and required fields)
+  schema                Json     @default("{}")
+  
+  // Advanced property types
+  mirrorProperties       Json @default("{}")
+  calculationProperties  Json @default("{}")
+  aggregationProperties  Json @default("{}")
+  
+  // Relations to other blueprints
+  relations   Json     @default("{}")
+  
+  changelogDestination   Json?    // Changelog tracking configuration
+  
+  // Audit fields
   createdAt   DateTime @default(now())
+  createdBy   String?
   updatedAt   DateTime @updatedAt
+  updatedBy   String?
 
-  properties  BlueprintProperty[]
+  // Multi-tenancy
+  organizationId String?
+  tenantId       String?
+
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tenant         Tenant?       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@index([identifier])
+  @@index([organizationId])
+  @@index([tenantId])
 }
 
-// BlueprintProperty model
-model BlueprintProperty {
-  id          String   @id @default(cuid())
-  blueprintId String
-  title       String
-  identifier  String
-  type        String
-  required    Boolean  @default(false)
-  description String?
-  icon        String?
-  defaultValue String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+// Entity model - Port.io compatible entity structure
+model Entity {
+  id             String   @id @default(cuid())
+  identifier     String   // User-defined identifier
+  blueprintId    String   // Blueprint identifier this entity belongs to
+  title          String?  // Display title
 
-  blueprint   Blueprint @relation(fields: [blueprintId], references: [id], onDelete: Cascade)
+  // Entity data (properties)
+  properties     Json     @default("{}")
 
-  @@unique([blueprintId, identifier])
+  // Relations to other entities
+  relations      Json     @default("{}")
+
+  // Metadata
+  team           String?  // Team/group ownership
+  icon           String?  // Icon override
+
+  // Audit fields
+  createdAt      DateTime @default(now())
+  createdBy      String?
+  updatedAt      DateTime @updatedAt
+  updatedBy      String?
+
+  // Multi-tenancy
+  organizationId String?
+  tenantId       String?
+
+  // History tracking
+  history        EntityHistory[]
+
+  @@unique([identifier, blueprintId, organizationId, tenantId])
   @@index([blueprintId])
+  @@index([identifier])
+  @@index([organizationId])
+  @@index([tenantId])
+  @@index([createdAt])
+  @@index([updatedAt])
+}
+
+// EntityHistory model - tracks changes to entity properties over time
+model EntityHistory {
+  id             String   @id @default(cuid())
+  entityId       String
+  blueprintId    String
+  entityIdentifier String
+
+  // Changed data
+  propertyName   String?  // Specific property that changed (null for full entity updates)
+  oldValue       Json?    // Previous value
+  newValue       Json?    // New value
+
+  // Change metadata
+  changeType     String   // "CREATE", "UPDATE", "DELETE", "PROPERTY_UPDATE"
+  changedAt      DateTime @default(now())
+  changedBy      String?
+
+  // Snapshot of entity at this point in time
+  snapshot       Json     // Full entity state at this time
+
+  // Multi-tenancy
+  organizationId String?
+  tenantId       String?
+
+  // Relations
+  entity         Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  @@index([entityId])
+  @@index([blueprintId])
+  @@index([entityIdentifier])
+  @@index([propertyName])
+  @@index([changedAt])
+  @@index([organizationId])
+  @@index([tenantId])
+}
+
+// CatalogFolder model - hierarchical folder structure for organizing catalog pages
+model CatalogFolder {
+  id             String   @id @default(cuid())
+  title          String
+  description    String?
+
+  // Hierarchy
+  parentId       String?
+  parent         CatalogFolder?  @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children       CatalogFolder[] @relation("FolderHierarchy")
+
+  // Ordering
+  order          Int      @default(0)
+
+  // Audit fields
+  createdAt      DateTime @default(now())
+  createdBy      String?
+  updatedAt      DateTime @updatedAt
+  updatedBy      String?
+
+  // Multi-tenancy
+  organizationId String
+  tenantId       String?
+
+  // Relations
+  pages          CatalogPage[]
+
+  @@index([organizationId])
+  @@index([tenantId])
+  @@index([parentId])
+  @@index([order])
+}
+
+// CatalogPage model - pages that display entities from a blueprint
+model CatalogPage {
+  id             String   @id @default(cuid())
+  title          String
+  icon           String?
+  description    String?
+
+  // Blueprint association
+  blueprintId    String
+
+  // Folder association
+  folderId       String?
+  folder         CatalogFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  // Page configuration
+  layout         String   @default("table") // "table", "grid", "list"
+  filters        Json     @default("{}") // Default filters for the page
+  columns        Json     @default("[]") // Visible columns configuration
+  sortBy         String?  // Default sort field
+  sortOrder      String?  // "asc" or "desc"
+
+  // Ordering
+  order          Int      @default(0)
+
+  // Visibility
+  isPublic       Boolean  @default(true)
+
+  // Audit fields
+  createdAt      DateTime @default(now())
+  createdBy      String?
+  updatedAt      DateTime @updatedAt
+  updatedBy      String?
+
+  // Multi-tenancy
+  organizationId String
+  tenantId       String?
+
+  @@index([organizationId])
+  @@index([tenantId])
+  @@index([blueprintId])
+  @@index([folderId])
+  @@index([order])
+}
+
+// AuditLog model - tracks all system actions
+model AuditLog {
+  id             String   @id @default(cuid())
+  identifier     String   @unique
+  action         String   // "CREATE", "UPDATE", "DELETE"
+  resourceType   String   // "blueprint", "entity", "user", "organization", etc.
+  status         String   // "SUCCESS", "FAILURE"
+  message        String?  // Error message if failed
+
+  // Trigger information
+  triggeredAt    DateTime @default(now())
+  triggeredBy    Json     // { appId?, userId?, orgId? }
+  origin         String   // "API", "UI", "SYSTEM"
+
+  // Context information
+  context        Json?    // Resource-specific data (blueprintId, entityId, etc.)
+  additionalData Json?    // Extra metadata
+
+  // Relations
+  organizationId String?
+  userId         String?
+
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([resourceType])
+  @@index([action])
+  @@index([triggeredAt])
+  @@index([status])
 }

@@ -51,7 +51,24 @@ export const authStorage = {
 };
 
 // Get auth header for API requests
-export const getAuthHeader = (): { Authorization: string } | {} => {
+export const getAuthHeader = (): { Authorization: string; 'x-organization-id'?: string; 'x-tenant-id'?: string } | {} => {
     const token = authStorage.getToken();
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    const organizationId = authStorage.getCurrentOrganization();
+    const tenantId = authStorage.getCurrentTenant();
+
+    if (!token) return {};
+
+    const headers: any = {
+        Authorization: `Bearer ${token}`,
+    };
+
+    if (organizationId) {
+        headers['x-organization-id'] = organizationId;
+    }
+
+    if (tenantId) {
+        headers['x-tenant-id'] = tenantId;
+    }
+
+    return headers;
 };

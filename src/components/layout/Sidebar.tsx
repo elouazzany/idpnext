@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   Search,
@@ -7,20 +7,25 @@ import {
   ChevronRight,
   MoreHorizontal,
   Box,
-  Layers,
-  Flag,
-  Wifi,
   User,
   Users,
-  Phone,
-  Layout,
   LayoutTemplate,
   LayoutDashboard,
   FolderPlus,
   Sparkles,
-  Network
+  Folder,
+  Edit,
+  Settings,
+  Lock,
+  Trash2
 } from 'lucide-react'
 import { clsx } from 'clsx'
+import catalogPageService from '../../services/catalogPage.service'
+import { CatalogFolder, CatalogPage } from '../../types/catalogPage'
+import { ConfirmDeleteModal } from '../datamodel/ConfirmDeleteModal'
+
+import FolderCreationModal from '../catalog/FolderCreationModal'
+import PageCreationModal from '../catalog/PageCreationModal'
 
 type NavItem = {
   name: string
@@ -32,48 +37,19 @@ type NavItem = {
   isOpen?: boolean
 }
 
-const initialNavigation: NavItem[] = [
+const topNavigation: NavItem[] = [
   {
     name: 'Service Catalog',
-    isHeader: true,
+    isHeader: false,
     href: '/catalog',
     icon: Box,
     iconColor: 'text-pink-500'
   },
-  {
-    name: 'Developer',
-    isOpen: true,
-    children: [
-      { name: 'Plan My Day', href: '/catalog?name=Plan My Day', icon: Layout, iconColor: 'text-blue-500' },
-      { name: 'My Services', href: '/catalog?name=My Services', icon: Box, iconColor: 'text-pink-500' },
-      { name: 'Feature Development', href: '/catalog?name=Feature Development', icon: Layers, iconColor: 'text-yellow-500' },
-      { name: 'Feature Flags', href: '/catalog?name=Feature Flags', icon: Flag, iconColor: 'text-gray-700' },
-      {
-        name: 'Initiatives',
-        isOpen: false,
-        children: [
-          { name: 'Sonar is setup', href: '/catalog?name=Sonar is setup', icon: Wifi, iconColor: 'text-blue-500' },
-          { name: 'Service belongs to team', href: '/catalog?name=Service belongs to team', icon: Users, iconColor: 'text-gray-500' },
-          { name: 'Service is monitored', href: '/catalog?name=Service is monitored', icon: Flag, iconColor: 'text-green-500' },
-        ]
-      },
-    ]
-  },
-  {
-    name: 'Team Lead',
-    isOpen: false,
-    children: []
-  },
-  {
-    name: 'On-Call',
-    isOpen: false,
-    children: [
-      { name: 'PagerDuty', href: '/catalog?name=PagerDuty', icon: Phone, iconColor: 'text-green-600' }
-    ]
-  },
-  { name: 'Users', href: '/users', icon: User, iconColor: 'text-gray-700' },
-  { name: 'Teams', href: '/teams', icon: Users, iconColor: 'text-gray-700' },
-  { name: 'Data Model', href: '/admin/data-model', icon: Network, iconColor: 'text-gray-700' }
+]
+
+const bottomNavigation: NavItem[] = [
+  { name: 'Users', href: '/users', icon: User, iconColor: 'text-gray-700', isHeader: false },
+  { name: 'Teams', href: '/teams', icon: Users, iconColor: 'text-gray-700', isHeader: false },
 ]
 
 export function Sidebar() {
@@ -81,13 +57,227 @@ export function Sidebar() {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     '1': true // Developer section open by default (now at index 1)
   })
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    isOpen: boolean
+    type: 'page' | 'folder'
+    id: string
+    title: string
+  }>({
+    isOpen: false,
+    type: 'page',
+    id: '',
+    title: ''
+  })
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false)
+
+  const [showFolderModal, setShowFolderModal] = useState(false)
+  const [showPageModal, setShowPageModal] = useState(false)
+  const [catalogFolders, setCatalogFolders] = useState<CatalogFolder[]>([])
+  const [catalogPages, setCatalogPages] = useState<CatalogPage[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [contextMenu, setContextMenu] = useState<{
+    type: 'page' | 'folder'
+    id: string
+    x: number
+    y: number
+  } | null>(null)
+  const contextMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    loadCatalogData()
+  }, [])
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(event.target as Node)) {
+        setContextMenu(null)
+      }
+    }
+
+    if (contextMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [contextMenu])
+
+  const loadCatalogData = async () => {
+    try {
+      setLoading(true)
+      const [foldersRes, pagesRes] = await Promise.all([
+        catalogPageService.getFolderTree(),
+        catalogPageService.getAllPages()
+      ])
+
+      if (foldersRes.ok) setCatalogFolders(foldersRes.tree)
+      if (pagesRes.ok) setCatalogPages(pagesRes.pages)
+    } catch (error) {
+      console.error('Failed to load catalog data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreateFolder = () => {
+    setIsNewMenuOpen(false)
+    setShowFolderModal(true)
+  }
+
+  const handleCreatePage = () => {
+    setIsNewMenuOpen(false)
+    setShowPageModal(true)
+  }
+
+  const handleFolderSuccess = () => {
+    loadCatalogData()
+    setShowFolderModal(false)
+  }
+
+  const handlePageSuccess = () => {
+    loadCatalogData()
+    setShowPageModal(false)
+  }
+
+  const handleDeleteClick = (type: 'page' | 'folder', id: string, title: string) => {
+    setDeleteConfirmation({
+      isOpen: true,
+      type,
+      id,
+      title
+    })
+    setContextMenu(null)
+  }
+
+  const handleConfirmDelete = async () => {
+    const { type, id } = deleteConfirmation
+
+    try {
+      if (type === 'page') {
+        await catalogPageService.deletePage(id)
+      } else {
+        await catalogPageService.deleteFolder(id, true)
+      }
+      loadCatalogData()
+      setDeleteConfirmation(prev => ({ ...prev, isOpen: false }))
+    } catch (error) {
+      console.error(`Failed to delete ${type}:`, error)
+      alert(`Failed to delete ${type}`)
+    }
+  }
+
+  const showContextMenu = (e: React.MouseEvent, type: 'page' | 'folder', id: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({
+      type,
+      id,
+      x: e.clientX,
+      y: e.clientY
+    })
+  }
+
+  // ... existing renderItem and components
 
   const toggleItem = (pathKey: string) => {
     setExpandedItems(prev => ({
       ...prev,
       [pathKey]: !prev[pathKey]
     }))
+  }
+
+  // Folder Component
+  const FolderItem = ({ folder, level = 0 }: { folder: CatalogFolder; level?: number }) => {
+    const folderKey = `catalog-folder-${folder.id}`
+    const isOpen = expandedItems[folderKey]
+
+    return (
+      <div>
+        <div
+          className={clsx(
+            "w-full flex items-center justify-between px-2 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md group transition-colors",
+            level > 0 && "ml-2"
+          )}
+          style={{ paddingLeft: `${level * 0.5 + 0.5}rem` }}
+        >
+          <div className="flex items-center gap-1.5 flex-1">
+            <button
+              onClick={() => toggleItem(folderKey)}
+              className="flex items-center gap-1"
+            >
+              {isOpen ? (
+                <ChevronDown className="h-3 w-3 text-gray-400" />
+              ) : (
+                <ChevronRight className="h-3 w-3 text-gray-400" />
+              )}
+            </button>
+            <span className="truncate flex-1 font-semibold">{folder.title}</span>
+          </div>
+          <button
+            onClick={(e) => showContextMenu(e, 'folder', folder.id)}
+            className="opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <MoreHorizontal className="h-3 w-3 text-gray-400 hover:text-gray-600" />
+          </button>
+        </div>
+        {isOpen && (
+          <div className="ml-2">
+            {/* Render child folders first */}
+            {folder.children && folder.children.length > 0 && (
+              <>
+                {folder.children
+                  .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                  .map(childFolder => (
+                    <FolderItem key={childFolder.id} folder={childFolder} level={level + 1} />
+                  ))}
+              </>
+            )}
+
+            {/* Render pages in this folder */}
+            {folder.pages && folder.pages.length > 0 && (
+              <>
+                {folder.pages
+                  .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                  .map(page => (
+                    <PageItem key={page.id} page={page} level={level + 1} />
+                  ))}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Page Component
+  const PageItem = ({ page, level = 0 }: { page: CatalogPage; level?: number }) => {
+    return (
+      <div className="group relative">
+        <NavLink
+          to={`/catalog/${page.id}`}
+          className={({ isActive }) =>
+            clsx(
+              'flex items-center justify-between gap-2 py-2 rounded-md text-sm transition-colors pr-6',
+              isActive
+                ? 'bg-blue-50 text-blue-600'
+                : 'text-gray-600 hover:bg-gray-100'
+            )
+          }
+          style={{ paddingLeft: `${level * 0.5 + 0.5}rem` }}
+        >
+          <div className="flex items-center gap-2">
+            {page.icon && <span className="text-xs">{page.icon}</span>}
+            <span className="truncate font-semibold">{page.title}</span>
+          </div>
+        </NavLink>
+        <button
+          onClick={(e) => showContextMenu(e, 'page', page.id)}
+          className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <MoreHorizontal className="h-3 w-3 text-gray-400 hover:text-gray-600" />
+        </button>
+      </div>
+    )
   }
 
   const renderItem = (item: NavItem, path: number[], level: number = 0) => {
@@ -104,20 +294,20 @@ export function Sidebar() {
               to={item.href}
               className={({ isActive }) =>
                 clsx(
-                  "flex items-center gap-2 px-2 py-1.5 mb-1 rounded-md cursor-pointer transition-colors",
+                  "flex items-center gap-2 px-2 py-2.5 mb-1 rounded-md cursor-pointer transition-colors",
                   isActive
                     ? 'bg-gray-200'
                     : 'bg-gray-100/50 hover:bg-gray-200'
                 )
               }
             >
-              {item.icon && <item.icon className={clsx("h-3.5 w-3.5", item.iconColor)} />}
-              <span className="text-xs font-semibold text-gray-700">{item.name}</span>
+              {item.icon && <item.icon className={clsx("h-4 w-4", item.iconColor)} />}
+              <span className="text-sm font-semibold text-gray-700">{item.name}</span>
             </NavLink>
           ) : (
-            <div className="flex items-center gap-2 px-2 py-1.5 mb-1 bg-gray-100/50 rounded-md">
-              {item.icon && <item.icon className={clsx("h-3.5 w-3.5", item.iconColor)} />}
-              <span className="text-xs font-semibold text-gray-700">{item.name}</span>
+            <div className="flex items-center gap-2 px-2 py-2.5 mb-1 bg-gray-100/50 rounded-md">
+              {item.icon && <item.icon className={clsx("h-4 w-4", item.iconColor)} />}
+              <span className="text-sm font-semibold text-gray-700">{item.name}</span>
             </div>
           )}
           <div className="space-y-0.5">
@@ -133,7 +323,7 @@ export function Sidebar() {
           <button
             onClick={() => toggleItem(pathKey)}
             className={clsx(
-              "w-full flex items-center justify-between px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded-md group transition-colors",
+              "w-full flex items-center justify-between px-2 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md group transition-colors",
               level > 1 && "ml-2"
             )}
             style={{ paddingLeft: `${level * 0.5 + 0.5}rem` }}
@@ -144,8 +334,8 @@ export function Sidebar() {
               ) : (
                 <ChevronRight className="h-3 w-3 text-gray-400" />
               )}
-              {item.icon && <item.icon className={clsx("h-3.5 w-3.5", item.iconColor)} />}
-              <span>{item.name}</span>
+              {item.icon && <item.icon className={clsx("h-4 w-4", item.iconColor)} />}
+              <span className="font-semibold">{item.name}</span>
             </div>
             <MoreHorizontal className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100" />
           </button>
@@ -164,7 +354,7 @@ export function Sidebar() {
         to={item.href || '#'}
         className={({ isActive }) =>
           clsx(
-            'flex items-center gap-2 py-1 rounded-md text-xs transition-colors',
+            'flex items-center gap-2 py-2 rounded-md text-sm transition-colors',
             isActive
               ? 'bg-blue-50 text-blue-600'
               : 'text-gray-600 hover:bg-gray-100'
@@ -172,8 +362,8 @@ export function Sidebar() {
         }
         style={{ paddingLeft: `${level * 0.5 + 0.5}rem`, paddingRight: '0.5rem' }}
       >
-        {item.icon && <item.icon className={clsx("h-3.5 w-3.5", item.iconColor)} />}
-        <span className="truncate">{item.name}</span>
+        {item.icon && <item.icon className={clsx("h-4 w-4", item.iconColor)} />}
+        <span className="truncate font-semibold">{item.name}</span>
       </NavLink>
     )
   }
@@ -187,6 +377,8 @@ export function Sidebar() {
           <input
             type="text"
             placeholder="Search pages"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.5">
@@ -211,7 +403,10 @@ export function Sidebar() {
                 onClick={() => setIsNewMenuOpen(false)}
               />
               <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-20">
-                <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                <button
+                  onClick={handleCreatePage}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                >
                   <LayoutTemplate className="h-3.5 w-3.5 text-gray-400" />
                   New catalog page
                 </button>
@@ -219,7 +414,10 @@ export function Sidebar() {
                   <LayoutDashboard className="h-3.5 w-3.5 text-gray-400" />
                   New dashboard
                 </button>
-                <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                <button
+                  onClick={handleCreateFolder}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                >
                   <FolderPlus className="h-3.5 w-3.5 text-gray-400" />
                   New folder
                 </button>
@@ -235,8 +433,121 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-2 pb-4">
-        {initialNavigation.map((item, index) => renderItem(item, [index]))}
+        {topNavigation.map((item, index) => renderItem(item, [index]))}
+
+        {/* Catalog Folders and Pages Section */}
+        {!loading && (catalogFolders.length > 0 || catalogPages.length > 0) && (
+          <>
+            {/* Folders */}
+            {catalogFolders
+              .filter(folder => {
+                if (!searchQuery) return true
+                const matchesFolder = folder.title.toLowerCase().includes(searchQuery.toLowerCase())
+                const matchesPage = folder.pages?.some(p =>
+                  p.title.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+                return matchesFolder || matchesPage
+              })
+              .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+              .map(folder => <FolderItem key={folder.id} folder={folder} />)}
+
+            {/* Root Pages */}
+            {catalogPages
+              .filter(page => !page.folderId)
+              .filter(page => !searchQuery || page.title.toLowerCase().includes(searchQuery.toLowerCase()))
+              .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+              .map(page => <PageItem key={page.id} page={page} />)}
+          </>
+        )}
+
+        {bottomNavigation.map((item, index) => renderItem(item, [index + topNavigation.length]))}
       </nav>
+
+      {/* Modals */}
+      {showFolderModal && (
+        <FolderCreationModal
+          onClose={() => setShowFolderModal(false)}
+          onSuccess={handleFolderSuccess}
+        />
+      )}
+
+      {showPageModal && (
+        <PageCreationModal
+          onClose={() => setShowPageModal(false)}
+          onSuccess={handlePageSuccess}
+        />
+      )}
+
+      <ConfirmDeleteModal
+        isOpen={deleteConfirmation.isOpen}
+        title={`Delete ${deleteConfirmation.type === 'page' ? 'Page' : 'Folder'}`}
+        message={`Are you sure you want to delete "${deleteConfirmation.title}"? ${deleteConfirmation.type === 'folder'
+          ? 'This will also delete all pages inside it.'
+          : 'This action cannot be undone.'
+          }`}
+        confirmLabel="Delete"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteConfirmation(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="fixed z-50 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1"
+          style={{
+            left: `${contextMenu.x}px`,
+            top: `${contextMenu.y}px`
+          }}
+        >
+          <button
+            onClick={() => setContextMenu(null)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <Edit className="h-3.5 w-3.5 text-gray-500" />
+            Edit {contextMenu.type}
+          </button>
+          {contextMenu.type === 'page' && (
+            <button
+              onClick={() => setContextMenu(null)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <Settings className="h-3.5 w-3.5 text-gray-500" />
+              Manage Blueprint
+            </button>
+          )}
+          <button
+            onClick={() => setContextMenu(null)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <Users className="h-3.5 w-3.5 text-gray-500" />
+            Permissions
+          </button>
+          <button
+            onClick={() => setContextMenu(null)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <Lock className="h-3.5 w-3.5 text-gray-500" />
+            Lock {contextMenu.type}
+          </button>
+          <div className="border-t border-gray-200 my-1" />
+          <button
+            onClick={() => {
+              const item = contextMenu.type === 'page'
+                ? catalogPages.find(p => p.id === contextMenu.id)
+                : catalogFolders.find(f => f.id === contextMenu.id)
+
+              if (item) {
+                handleDeleteClick(contextMenu.type, contextMenu.id, item.title)
+              }
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete {contextMenu.type}
+          </button>
+        </div>
+      )}
     </aside>
   )
 }

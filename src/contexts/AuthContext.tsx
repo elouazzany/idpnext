@@ -113,10 +113,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // Set current tenant (from storage or default)
             const storedTenantId = authStorage.getCurrentTenant();
             const defaultTenant = tenants.find((t: Tenant) => t.isDefault) || tenants[0];
-            const tenant = tenants.find((t: Tenant) => t.id === storedTenantId) || defaultTenant;
 
-            if (tenant) {
-                switchTenant(tenant.id);
+            // If stored tenant exists in the new list, use it. Otherwise use default.
+            const tenantToSelect = tenants.find((t: Tenant) => t.id === storedTenantId) || defaultTenant;
+
+            if (tenantToSelect) {
+                setCurrentTenant(tenantToSelect);
+                authStorage.setCurrentTenant(tenantToSelect.id);
             }
         } catch (error) {
             console.error('Failed to switch organization:', error);

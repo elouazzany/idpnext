@@ -7,6 +7,7 @@ import { InvitationAcceptPage } from './pages/InvitationAcceptPage'
 import { OrganizationSetupPage } from './pages/OrganizationSetupPage'
 import { MainLayout } from './components/layout/MainLayout'
 import { CatalogPage } from './pages/CatalogPage'
+import { CatalogPageView } from './pages/CatalogPageView'
 import { SelfServicePage } from './pages/SelfServicePage'
 import { EnvironmentsPage } from './pages/EnvironmentsPage'
 import { ActionsPage } from './pages/ActionsPage'
@@ -22,6 +23,7 @@ import { AutomationsPage } from './pages/admin/AutomationsPage'
 import { CredentialsPage } from './pages/admin/CredentialsPage'
 import { OrganizationSettingsPage } from './pages/admin/OrganizationSettingsPage'
 import { UsersTeamsPage } from './pages/admin/UsersTeamsPage'
+import { TenantsPage } from './pages/admin/TenantsPage'
 
 function App() {
   return (
@@ -45,6 +47,7 @@ function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/profile" element={<UserProfilePage />} />
               <Route path="/catalog" element={<CatalogPage />} />
+              <Route path="/catalog/:pageId" element={<CatalogPageView />} />
               <Route path="/self-service" element={<SelfServicePage />} />
               <Route path="/environments" element={<EnvironmentsPage />} />
               <Route path="/actions" element={<ActionsPage />} />
@@ -55,6 +58,7 @@ function App() {
                 <Route path="data-sources" element={<DataSourcesPage />} />
                 <Route path="automations" element={<AutomationsPage />} />
                 <Route path="users-teams" element={<UsersTeamsPage />} />
+                <Route path="tenants" element={<TenantsPage />} />
                 <Route path="audit-log" element={<AuditLogPage />} />
                 <Route path="credentials" element={<CredentialsPage />} />
                 <Route path="organization" element={<OrganizationSettingsPage />} />
