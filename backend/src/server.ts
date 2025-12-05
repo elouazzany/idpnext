@@ -8,6 +8,9 @@ import organizationsRoutes from './routes/organizations.routes.js';
 import invitationsRoutes from './routes/invitations.routes.js';
 import tenantsRoutes from './routes/tenants.routes.js';
 import blueprintsRoutes from './routes/blueprints.routes.js';
+import entitiesRoutes from './routes/entities.routes.js';
+import catalogRoutes from './routes/catalog.routes.js';
+import auditLogsRoutes from './routes/audit-logs.routes.js';
 
 const app = express();
 
@@ -49,6 +52,9 @@ app.use('/api/organizations', organizationsRoutes);
 app.use('/api/invitations', invitationsRoutes);
 app.use('/api/tenants', tenantsRoutes);
 app.use('/api/blueprints', blueprintsRoutes);
+app.use('/api/v1', entitiesRoutes);
+app.use('/api/catalog', catalogRoutes);
+app.use('/api', auditLogsRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

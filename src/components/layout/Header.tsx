@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { Activity, Search, UserPlus, Settings, Home, Database, Rocket } from 'lucide-react'
 import { clsx } from 'clsx'
 import { UserMenu } from './UserMenu'
+import { TenantSelector } from './TenantSelector'
 import { useAuth } from '@/contexts/AuthContext'
 
 const navItems = [
@@ -38,6 +39,9 @@ export function Header() {
               {currentOrganization?.name || 'Port'}
             </span>
           </div>
+
+          {/* Tenant Selector */}
+          <TenantSelector />
 
           {/* Navigation Items */}
           <nav className="flex items-center gap-1">
@@ -89,7 +93,7 @@ export function Header() {
             className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
           >
             <Settings className="h-4 w-4" />
-            <span>Builder</span>
+            <span>Admin</span>
           </button>
 
           {/* Add User Icon */}
@@ -125,6 +129,6 @@ export function Header() {
           {isAuthenticated && <UserMenu />}
         </div>
       </div>
-    </header>
+    </header >
   )
 }

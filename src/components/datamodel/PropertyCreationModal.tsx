@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronDown } from 'lucide-react';
-import { BlueprintProperty } from '@/types/blueprint';
-
 interface Props {
+    property?: any;
     onClose: () => void;
-    onCreate: (property: BlueprintProperty) => void;
+    onCreate?: (property: any) => void;
+    onUpdate?: (property: any) => void;
 }
 
 const PROPERTY_TYPES = [
@@ -15,36 +15,42 @@ const PROPERTY_TYPES = [
     { category: 'Users & Teams', types: ['Port Team', 'Port User'] },
 ];
 
-export const PropertyCreationModal: React.FC<Props> = ({ onClose, onCreate }) => {
-    const [title, setTitle] = useState('');
-    const [identifier, setIdentifier] = useState('');
-    const [autoGenerate, setAutoGenerate] = useState(true);
-    const [type, setType] = useState('String');
-    const [required, setRequired] = useState('False');
-    const [description, setDescription] = useState('');
+export const PropertyCreationModal: React.FC<Props> = ({ property, onClose, onCreate, onUpdate }) => {
+    const isEditMode = !!property;
+    const [title, setTitle] = useState(property?.title || '');
+    const [identifier, setIdentifier] = useState(property?.identifier || '');
+    const [autoGenerate, setAutoGenerate] = useState(!property);
+    const [type, setType] = useState(property?.type || 'String');
+    const [required, setRequired] = useState(property?.required ? 'True' : 'False');
+    const [description, setDescription] = useState(property?.description || '');
 
     useEffect(() => {
-        if (autoGenerate) {
+        if (autoGenerate && !isEditMode) {
             setIdentifier(title.toLowerCase().replace(/[^a-z0-9]+/g, '_'));
         }
-    }, [title, autoGenerate]);
+    }, [title, autoGenerate, isEditMode]);
 
     const handleSubmit = () => {
-        onCreate({
-            id: crypto.randomUUID(),
+        const propertyData = {
             title,
             identifier,
             type,
             required: required === 'True',
             description
-        });
+        };
+
+        if (isEditMode && onUpdate) {
+            onUpdate(propertyData);
+        } else if (onCreate) {
+            onCreate(propertyData);
+        }
     };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="bg-white rounded-lg shadow-xl w-[500px] overflow-hidden animate-in fade-in zoom-in duration-200">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                    <h2 className="text-lg font-semibold text-gray-900">New property</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">{isEditMode ? 'Edit property' : 'New property'}</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
                         <X className="w-5 h-5" />
                     </button>
@@ -69,15 +75,17 @@ export const PropertyCreationModal: React.FC<Props> = ({ onClose, onCreate }) =>
                                 <span className="text-red-500">*</span>
                                 <span className="text-gray-400 text-xs cursor-help" title="Unique identifier">ⓘ</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-gray-500">Autogenerate</span>
-                                <button
-                                    onClick={() => setAutoGenerate(!autoGenerate)}
-                                    className={`w-8 h-4 rounded-full relative transition-colors ${autoGenerate ? 'bg-green-500' : 'bg-gray-300'}`}
-                                >
-                                    <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${autoGenerate ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                                </button>
-                            </div>
+                            {!isEditMode && (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-500">Autogenerate</span>
+                                    <button
+                                        onClick={() => setAutoGenerate(!autoGenerate)}
+                                        className={`w-8 h-4 rounded-full relative transition-colors ${autoGenerate ? 'bg-green-500' : 'bg-gray-300'}`}
+                                    >
+                                        <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${autoGenerate ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                    </button>
+                                </div>
+                            )}
                         </div>
                         <input
                             type="text"
@@ -86,8 +94,8 @@ export const PropertyCreationModal: React.FC<Props> = ({ onClose, onCreate }) =>
                                 setIdentifier(e.target.value);
                                 setAutoGenerate(false);
                             }}
-                            disabled={autoGenerate}
-                            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${autoGenerate ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                            disabled={autoGenerate || isEditMode}
+                            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${(autoGenerate || isEditMode) ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                         />
                     </div>
 
@@ -160,7 +168,7 @@ export const PropertyCreationModal: React.FC<Props> = ({ onClose, onCreate }) =>
                         disabled={!title || !identifier}
                         className="px-4 py-2 text-sm font-medium text-white bg-black rounded-md hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                        Create
+                        {isEditMode ? 'Save' : 'Create'}
                     </button>
                 </div>
             </div>

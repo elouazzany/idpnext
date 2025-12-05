@@ -6,7 +6,8 @@ import {
     Users as UsersIcon,
     FileText,
     Key,
-    Settings
+    Settings,
+    Building2
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -14,6 +15,7 @@ const adminNavItems = [
     { name: 'Data model', href: '/admin/data-model', icon: Network },
     { name: 'Data sources', href: '/admin/data-sources', icon: Database },
     { name: 'Automations', href: '/admin/automations', icon: Zap },
+    { name: 'Tenants', href: '/admin/tenants', icon: Building2 },
     { name: 'Users and teams', href: '/admin/users-teams', icon: UsersIcon },
     { name: 'Audit log', href: '/admin/audit-log', icon: FileText },
     { name: 'Credentials', href: '/admin/credentials', icon: Key },
