@@ -3,7 +3,7 @@ import { X, Trash2, MoreHorizontal, Plus, Edit, Database, Code } from 'lucide-re
 import { Blueprint } from '@/types/blueprint';
 import { PropertyCreationModal } from './PropertyCreationModal';
 import { RelationCreationModal } from './RelationCreationModal';
-import { JsonEditorModal } from './JsonEditorModal';
+import { CodeEditorModal } from './CodeEditorModal';
 import { BlueprintMetadataModal } from './BlueprintMetadataModal';
 
 interface Props {
@@ -78,8 +78,39 @@ export const BlueprintEditorModal: React.FC<Props> = ({ blueprint, availableBlue
         }
     };
 
+    // Helper to determine property kind (reused from PropertyCreationModal logic)
+    const getPropertyKind = (prop: any) => {
+        if (!prop) return 'String';
+
+        // Enum detection
+        if (prop.enum || (prop.type === 'array' && prop.items?.enum)) {
+            return 'Enum';
+        }
+
+        // URL detection
+        if (prop.format === 'url' || (prop.type === 'array' && prop.items?.format === 'url')) {
+            return 'URL';
+        }
+
+        // Object detection
+        if (prop.type === 'object' || prop.format === 'yaml' || prop.format === 'proto') {
+            return 'Object';
+        }
+
+        // Advanced string formats
+        const STRING_FORMATS = ['date-time', 'email', 'ipv4', 'ipv6', 'markdown', 'user', 'team', 'timer'];
+        if (prop.type === 'string' && prop.format && STRING_FORMATS.includes(prop.format)) {
+            // Capitalize first letter
+            return prop.format.charAt(0).toUpperCase() + prop.format.slice(1);
+        }
+
+        // Basic types - capitalize first letter
+        const type = prop.type || 'string';
+        return type.charAt(0).toUpperCase() + type.slice(1);
+    };
+
     // Get color for property type badge
-    const getTypeColor = (type: string) => {
+    const getTypeColor = (kind: string) => {
         const colors: Record<string, string> = {
             'String': 'bg-orange-50 text-orange-600 border-orange-200',
             'Number': 'bg-blue-50 text-blue-600 border-blue-200',
@@ -91,12 +122,15 @@ export const BlueprintEditorModal: React.FC<Props> = ({ blueprint, availableBlue
             'Relation': 'bg-indigo-50 text-indigo-600 border-indigo-200',
             'Object': 'bg-pink-50 text-pink-600 border-pink-200',
             'Array': 'bg-yellow-50 text-yellow-600 border-yellow-200',
-            'Date & time': 'bg-gray-50 text-gray-600 border-gray-200',
+            'Date-time': 'bg-gray-50 text-gray-600 border-gray-200',
+            'Email': 'bg-green-50 text-green-600 border-green-200',
+            'User': 'bg-blue-50 text-blue-600 border-blue-200',
+            'Team': 'bg-indigo-50 text-indigo-600 border-indigo-200',
         };
-        return colors[type] || 'bg-gray-50 text-gray-600 border-gray-200';
+        return colors[kind] || 'bg-gray-50 text-gray-600 border-gray-200';
     };
 
-    // Get icon for property type
+    // Get icon for property type (fallback if no custom icon)
     const getPropertyTypeIcon = (type: string) => {
         const icons: Record<string, string> = {
             'String': '📝',
@@ -228,59 +262,62 @@ export const BlueprintEditorModal: React.FC<Props> = ({ blueprint, availableBlue
                         <div className="space-y-4">
                             {/* Regular Properties */}
                             <div className="space-y-2">
-                                {regularProperties.map(prop => (
-                                    <div key={prop.identifier} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg group transition-colors relative">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-6 h-6 rounded flex items-center justify-center text-xs ${getTypeColor(prop.type)}`}>
-                                                {getPropertyTypeIcon(prop.type)}
+                                {regularProperties.map(prop => {
+                                    const kind = getPropertyKind(prop);
+                                    return (
+                                        <div key={prop.identifier} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg group transition-colors relative">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-6 h-6 flex items-center justify-center text-lg">
+                                                    {prop.icon || getPropertyTypeIcon(kind)}
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-medium text-gray-700">{prop.title}</span>
+                                                    {prop.required && <span className="text-red-500 text-xs">*</span>}
+                                                </div>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-sm font-medium text-gray-700">{prop.title}</span>
-                                                {prop.required && <span className="text-red-500 text-xs">*</span>}
+                                                <span className={`px-2 py-0.5 text-xs font-medium border rounded ${getTypeColor(kind)}`}>
+                                                    {kind.toLowerCase()}
+                                                </span>
+                                                <div className="relative">
+                                                    <button
+                                                        onClick={() => setOpenDropdown(openDropdown === prop.identifier ? null : prop.identifier)}
+                                                        className="p-1 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <MoreHorizontal className="w-4 h-4" />
+                                                    </button>
+                                                    {openDropdown === prop.identifier && (
+                                                        <>
+                                                            <div
+                                                                className="fixed inset-0 z-10"
+                                                                onClick={() => setOpenDropdown(null)}
+                                                            />
+                                                            <div className="absolute right-0 top-full mt-1 z-20 w-32 bg-white border border-gray-200 rounded-lg shadow-lg py-1">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setEditingProperty({ identifier: prop.identifier, data: prop });
+                                                                        setOpenDropdown(null);
+                                                                    }}
+                                                                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                                                >
+                                                                    <Edit className="w-3.5 h-3.5" />
+                                                                    Edit
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteProperty(prop.identifier)}
+                                                                    className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                    Delete
+                                                                </button>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className={`px-2 py-0.5 text-xs font-medium border rounded ${getTypeColor(prop.type)}`}>
-                                                {prop.type}
-                                            </span>
-                                            <div className="relative">
-                                                <button
-                                                    onClick={() => setOpenDropdown(openDropdown === prop.identifier ? null : prop.identifier)}
-                                                    className="p-1 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                >
-                                                    <MoreHorizontal className="w-4 h-4" />
-                                                </button>
-                                                {openDropdown === prop.identifier && (
-                                                    <>
-                                                        <div
-                                                            className="fixed inset-0 z-10"
-                                                            onClick={() => setOpenDropdown(null)}
-                                                        />
-                                                        <div className="absolute right-0 top-full mt-1 z-20 w-32 bg-white border border-gray-200 rounded-lg shadow-lg py-1">
-                                                            <button
-                                                                onClick={() => {
-                                                                    setEditingProperty({ identifier: prop.identifier, data: prop });
-                                                                    setOpenDropdown(null);
-                                                                }}
-                                                                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                                                            >
-                                                                <Edit className="w-3.5 h-3.5" />
-                                                                Edit
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDeleteProperty(prop.identifier)}
-                                                                className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                                            >
-                                                                <Trash2 className="w-3.5 h-3.5" />
-                                                                Delete
-                                                            </button>
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
 
                             <button
@@ -423,10 +460,11 @@ export const BlueprintEditorModal: React.FC<Props> = ({ blueprint, availableBlue
             )}
 
             {isJsonEditorOpen && (
-                <JsonEditorModal
+                <CodeEditorModal
                     initialValue={blueprint}
                     onClose={() => setIsJsonEditorOpen(false)}
                     onSave={handleUpdateBlueprint}
+                    title="Edit Blueprint JSON"
                 />
             )}
 

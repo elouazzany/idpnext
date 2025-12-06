@@ -6,21 +6,36 @@ interface Props {
     initialValue: any;
     onClose: () => void;
     onSave: (value: any) => void;
+    language?: 'json' | 'yaml' | 'proto' | 'markdown';
+    title?: string;
 }
 
-export const JsonEditorModal: React.FC<Props> = ({ initialValue, onClose, onSave }) => {
+export const CodeEditorModal: React.FC<Props> = ({
+    initialValue,
+    onClose,
+    onSave,
+    language = 'json',
+    title = 'Edit Code'
+}) => {
     const [error, setError] = useState<string | null>(null);
     const editorRef = useRef<any>(null);
-    const [defaultValue] = useState(() => {
-        try {
-            return JSON.stringify(initialValue, null, 2);
-        } catch (e) {
-            return '{}';
+
+    // Initialize value string based on input type and language
+    const [value] = useState(() => {
+        if (typeof initialValue === 'string') return initialValue;
+        if (language === 'json') {
+            try {
+                return JSON.stringify(initialValue, null, 2);
+            } catch (e) {
+                return '{}';
+            }
         }
+        return String(initialValue);
     });
 
     const handleEditorDidMount: OnMount = (editor) => {
         editorRef.current = editor;
+        editor.focus(); // Ensure focus on mount
     };
 
     const handleFormat = () => {
@@ -32,9 +47,15 @@ export const JsonEditorModal: React.FC<Props> = ({ initialValue, onClose, onSave
     const handleSave = () => {
         try {
             if (!editorRef.current) return;
-            const value = editorRef.current.getValue();
-            const parsed = JSON.parse(value);
-            onSave(parsed);
+            const currentValue = editorRef.current.getValue();
+
+            if (language === 'json') {
+                const parsed = JSON.parse(currentValue);
+                onSave(parsed);
+            } else {
+                // For other languages, save as raw string
+                onSave(currentValue);
+            }
             onClose();
         } catch (e) {
             setError((e as Error).message);
@@ -42,12 +63,18 @@ export const JsonEditorModal: React.FC<Props> = ({ initialValue, onClose, onSave
     };
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+        <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+            onKeyDown={(e) => e.stopPropagation()} // Stop keyboard events from bubbling to parents
+        >
             <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl flex flex-col h-[85vh] animate-in fade-in zoom-in duration-200">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                     <div className="flex items-center gap-2">
                         <FileJson className="w-5 h-5 text-blue-600" />
-                        <h2 className="text-lg font-semibold text-gray-900">Edit JSON</h2>
+                        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+                        <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded uppercase">
+                            {language}
+                        </span>
                     </div>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
                         <X className="w-5 h-5" />
@@ -57,18 +84,24 @@ export const JsonEditorModal: React.FC<Props> = ({ initialValue, onClose, onSave
                 <div className="flex-1 relative bg-[#fffffe]">
                     <Editor
                         height="100%"
-                        defaultLanguage="json"
-                        defaultValue={defaultValue}
+                        defaultLanguage={language}
+                        defaultValue={value}
                         onMount={handleEditorDidMount}
                         options={{
-                            minimap: { enabled: false },
-                            fontSize: 14,
-                            lineNumbers: 'on',
-                            scrollBeyondLastLine: false,
-                            automaticLayout: true,
                             tabSize: 2,
                             formatOnPaste: true,
-                            formatOnType: true,
+                            formatOnType: false,
+                            quickSuggestions: false,
+                            suggestOnTriggerCharacters: false,
+                            snippetSuggestions: 'none',
+                            wordBasedSuggestions: false,
+                            minimap: { enabled: false },
+                            scrollBeyondLastLine: false,
+                            automaticLayout: true,
+                            renderValidationDecorations: 'off',
+                            autoClosingBrackets: 'never',
+                            autoClosingQuotes: 'never',
+                            contextmenu: false,
                         }}
                         onChange={() => setError(null)}
                     />
@@ -85,7 +118,7 @@ export const JsonEditorModal: React.FC<Props> = ({ initialValue, onClose, onSave
                         onClick={handleFormat}
                         className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
                     >
-                        Format JSON
+                        Format
                     </button>
                     <div className="flex items-center gap-3">
                         <button

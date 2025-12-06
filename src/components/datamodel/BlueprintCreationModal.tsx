@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Code } from 'lucide-react';
 import { Blueprint } from '@/types/blueprint';
-import { JsonEditorModal } from './JsonEditorModal';
+import { CodeEditorModal } from './CodeEditorModal';
 import { IconPickerModal } from './IconPickerModal';
 
 interface Props {
@@ -207,10 +207,11 @@ export const BlueprintCreationModal: React.FC<Props> = ({ onClose, onCreate }) =
 
                 {
                     isJsonEditorOpen && (
-                        <JsonEditorModal
+                        <CodeEditorModal
                             initialValue={getCurrentJson()}
                             onClose={() => setIsJsonEditorOpen(false)}
                             onSave={handleJsonSave}
+                            title="Edit Blueprint JSON"
                         />
                     )
                 }

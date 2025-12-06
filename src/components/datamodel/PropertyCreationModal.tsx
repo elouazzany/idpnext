@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown } from 'lucide-react';
+import { X, ChevronDown, Code } from 'lucide-react';
 import { IconPickerModal } from './IconPickerModal';
 import { BrandIcon } from './BrandIcon';
+import { CodeEditorModal } from './CodeEditorModal';
+
 interface Props {
     property?: any;
     onClose: () => void;
@@ -100,7 +102,7 @@ export const PropertyCreationModal: React.FC<Props> = ({ property, onClose, onCr
     const [minLength, setMinLength] = useState(property?.minLength?.toString() || '');
     const [maxLength, setMaxLength] = useState(property?.maxLength?.toString() || '');
     const [pattern, setPattern] = useState(property?.pattern || '');
-    const [format,] = useState(property?.format || '');
+    // const [format,] = useState(property?.format || '');
     const [min, setMin] = useState(property?.minimum?.toString() || '');
     const [max, setMax] = useState(property?.maximum?.toString() || '');
 
@@ -158,6 +160,9 @@ export const PropertyCreationModal: React.FC<Props> = ({ property, onClose, onCr
     });
 
     const [showIconPicker, setShowIconPicker] = useState(false);
+    const [showJsonEditor, setShowJsonEditor] = useState(false);
+
+
 
     const getColorName = (colorValue: string) => {
         const color = predefinedColors.find(c => c.value === colorValue);
@@ -524,6 +529,24 @@ export const PropertyCreationModal: React.FC<Props> = ({ property, onClose, onCr
                                     </select>
                                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                                 </div>
+                            ) : type === 'object' ? (
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={defaultValue}
+                                        readOnly
+                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 focus:outline-none cursor-not-allowed"
+                                        placeholder="Configure default JSON..."
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowJsonEditor(true)}
+                                        className="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-gray-600 transition-colors"
+                                        title="Edit JSON"
+                                    >
+                                        <Code className="w-4 h-4" />
+                                    </button>
+                                </div>
                             ) : (
                                 <input
                                     type={type === 'number' ? 'number' : 'text'}
@@ -853,6 +876,20 @@ export const PropertyCreationModal: React.FC<Props> = ({ property, onClose, onCr
                         setShowIconPicker(false);
                     }}
                     onClose={() => setShowIconPicker(false)}
+                />
+            )}
+
+            {showJsonEditor && (
+                <CodeEditorModal
+                    initialValue={defaultValue ? (objectType === 'json' ? JSON.parse(defaultValue) : defaultValue) : (objectType === 'json' ? {} : '')}
+                    onClose={() => setShowJsonEditor(false)}
+                    onSave={(value) => {
+                        // For JSON, value is object so we stringify
+                        // For others, value is raw string so we keep as is
+                        setDefaultValue(typeof value === 'object' ? JSON.stringify(value) : value);
+                    }}
+                    language={objectType as 'json' | 'yaml' | 'proto'}
+                    title={`Edit Default ${objectType.toUpperCase()}`}
                 />
             )}
         </div>
