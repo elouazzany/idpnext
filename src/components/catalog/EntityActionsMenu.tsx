@@ -76,8 +76,12 @@ const quickActions: Action[] = [
 export function EntityActionsMenu({ entityId, entityName }: EntityActionsMenuProps) {
   const [showQuickActions, setShowQuickActions] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [quickActionsPosition, setQuickActionsPosition] = useState({ top: 0, right: 0 })
+  const [moreMenuPosition, setMoreMenuPosition] = useState({ top: 0, right: 0 })
   const quickActionsRef = useRef<HTMLDivElement>(null)
   const moreMenuRef = useRef<HTMLDivElement>(null)
+  const quickActionsButtonRef = useRef<HTMLButtonElement>(null)
+  const moreMenuButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -93,6 +97,26 @@ export function EntityActionsMenu({ entityId, entityName }: EntityActionsMenuPro
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const updateQuickActionsPosition = () => {
+    if (quickActionsButtonRef.current) {
+      const rect = quickActionsButtonRef.current.getBoundingClientRect()
+      setQuickActionsPosition({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right
+      })
+    }
+  }
+
+  const updateMoreMenuPosition = () => {
+    if (moreMenuButtonRef.current) {
+      const rect = moreMenuButtonRef.current.getBoundingClientRect()
+      setMoreMenuPosition({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right
+      })
+    }
+  }
+
   const handleActionClick = (actionId: string) => {
     console.log(`Action ${actionId} clicked for entity ${entityId}`)
     setShowQuickActions(false)
@@ -104,7 +128,11 @@ export function EntityActionsMenu({ entityId, entityName }: EntityActionsMenuPro
       {/* Quick Actions Button */}
       <div className="relative" ref={quickActionsRef}>
         <button
-          onClick={() => setShowQuickActions(!showQuickActions)}
+          ref={quickActionsButtonRef}
+          onClick={() => {
+            updateQuickActionsPosition()
+            setShowQuickActions(!showQuickActions)
+          }}
           className="p-1 text-yellow-500 hover:bg-yellow-50 rounded transition-colors"
           title="Quick actions"
         >
@@ -113,7 +141,10 @@ export function EntityActionsMenu({ entityId, entityName }: EntityActionsMenuPro
 
         {/* Quick Actions Dropdown */}
         {showQuickActions && (
-          <div className="absolute right-0 mt-1 w-72 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+          <div
+            className="fixed w-72 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+            style={{ top: `${quickActionsPosition.top}px`, right: `${quickActionsPosition.right}px` }}
+          >
             {/* Header */}
             <div className="px-3 py-2 border-b border-gray-100">
               <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide">
@@ -148,7 +179,11 @@ export function EntityActionsMenu({ entityId, entityName }: EntityActionsMenuPro
       {/* More Options Button */}
       <div className="relative" ref={moreMenuRef}>
         <button
-          onClick={() => setShowMoreMenu(!showMoreMenu)}
+          ref={moreMenuButtonRef}
+          onClick={() => {
+            updateMoreMenuPosition()
+            setShowMoreMenu(!showMoreMenu)
+          }}
           className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded transition-colors"
           title="More options"
         >
@@ -157,7 +192,10 @@ export function EntityActionsMenu({ entityId, entityName }: EntityActionsMenuPro
 
         {/* More Options Dropdown */}
         {showMoreMenu && (
-          <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+          <div
+            className="fixed w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+            style={{ top: `${moreMenuPosition.top}px`, right: `${moreMenuPosition.right}px` }}
+          >
             <button className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
               View Details
             </button>

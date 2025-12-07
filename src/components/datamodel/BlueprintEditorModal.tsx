@@ -5,6 +5,7 @@ import { PropertyCreationModal } from './PropertyCreationModal';
 import { RelationCreationModal } from './RelationCreationModal';
 import { CodeEditorModal } from './CodeEditorModal';
 import { BlueprintMetadataModal } from './BlueprintMetadataModal';
+import { IconDisplay } from '../IconDisplay';
 
 interface Props {
     blueprint: Blueprint;
@@ -232,7 +233,7 @@ export const BlueprintEditorModal: React.FC<Props> = ({ blueprint, availableBlue
                 {/* Blueprint Title */}
                 <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0">
                     <div className="flex items-center gap-3">
-                        <div className="text-3xl">{blueprint.icon || '📦'}</div>
+                        <IconDisplay name={blueprint.icon || '📦'} className="w-8 h-8 text-gray-700" />
                         <h2 className="text-2xl font-bold text-gray-900">{blueprint.title}</h2>
                     </div>
                 </div>
@@ -267,8 +268,8 @@ export const BlueprintEditorModal: React.FC<Props> = ({ blueprint, availableBlue
                                     return (
                                         <div key={prop.identifier} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg group transition-colors relative">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-6 h-6 flex items-center justify-center text-lg">
-                                                    {prop.icon || getPropertyTypeIcon(kind)}
+                                                <div className="w-6 h-6 flex items-center justify-center">
+                                                    <IconDisplay name={prop.icon || getPropertyTypeIcon(kind)} className="w-5 h-5 text-gray-500" />
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-sm font-medium text-gray-700">{prop.title}</span>

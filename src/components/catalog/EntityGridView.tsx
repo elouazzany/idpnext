@@ -4,30 +4,41 @@ import { mockEntities } from '@/data/mockEntities'
 
 interface EntityGridViewProps {
   filters: CatalogFilters
+  entities?: any[]  // Optional: if provided, use these instead of mockEntities
 }
 
-export function EntityGridView({ filters }: EntityGridViewProps) {
+export function EntityGridView({ filters, entities }: EntityGridViewProps) {
+  // Use provided entities or fallback to mockEntities
+  const sourceEntities = entities || mockEntities
+
   // Filter entities
-  const filteredEntities = mockEntities.filter((entity) => {
-    if (filters.types.length > 0 && !filters.types.includes(entity.type)) {
+  const filteredEntities = sourceEntities.filter((entity) => {
+    // Handle both catalog entities and Port.io entities
+    const entityType = entity.type || entity.properties?.type
+    const entityStatus = entity.status || entity.properties?.status
+    const entityOwner = entity.owner || entity.team || entity.properties?.owner
+    const entityTags = entity.tags || entity.properties?.tags || []
+    const entityName = entity.name || entity.title || entity.identifier
+    const entityDescription = entity.description || entity.properties?.description || ''
+
+    if (filters.types.length > 0 && entityType && !filters.types.includes(entityType)) {
       return false
     }
-    if (filters.statuses.length > 0 && !filters.statuses.includes(entity.status)) {
+    if (filters.statuses.length > 0 && entityStatus && !filters.statuses.includes(entityStatus)) {
       return false
     }
-    if (filters.teams.length > 0 && !filters.teams.includes(entity.owner)) {
+    if (filters.teams.length > 0 && entityOwner && !filters.teams.includes(entityOwner)) {
       return false
     }
-    if (filters.tags.length > 0 && !filters.tags.some((tag) => entity.tags.includes(tag))) {
+    if (filters.tags.length > 0 && entityTags.length > 0 && !filters.tags.some((tag) => entityTags.includes(tag))) {
       return false
     }
     if (filters.search) {
       const searchLower = filters.search.toLowerCase()
-      return (
-        entity.name.toLowerCase().includes(searchLower) ||
-        entity.description.toLowerCase().includes(searchLower) ||
-        entity.tags.some((tag) => tag.toLowerCase().includes(searchLower))
-      )
+      const nameMatch = entityName?.toLowerCase().includes(searchLower)
+      const descMatch = entityDescription?.toLowerCase().includes(searchLower)
+      const tagsMatch = Array.isArray(entityTags) && entityTags.some((tag) => tag.toLowerCase().includes(searchLower))
+      return nameMatch || descMatch || tagsMatch
     }
     return true
   })
@@ -38,7 +49,7 @@ export function EntityGridView({ filters }: EntityGridViewProps) {
       <div className="bg-white rounded-lg border px-6 py-3">
         <p className="text-sm text-gray-600">
           Showing <span className="font-medium text-gray-900">{filteredEntities.length}</span> of{' '}
-          <span className="font-medium text-gray-900">{mockEntities.length}</span> entities
+          <span className="font-medium text-gray-900">{sourceEntities.length}</span> entities
         </p>
       </div>
 

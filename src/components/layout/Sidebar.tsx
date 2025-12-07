@@ -23,6 +23,8 @@ import { clsx } from 'clsx'
 import catalogPageService from '../../services/catalogPage.service'
 import { CatalogFolder, CatalogPage } from '../../types/catalogPage'
 import { ConfirmDeleteModal } from '../datamodel/ConfirmDeleteModal'
+import { IconDisplay } from '../IconDisplay'
+import { useAuth } from '../../contexts/AuthContext'
 
 import FolderCreationModal from '../catalog/FolderCreationModal'
 import PageCreationModal from '../catalog/PageCreationModal'
@@ -38,21 +40,28 @@ type NavItem = {
 }
 
 const topNavigation: NavItem[] = [
-  {
-    name: 'Service Catalog',
-    isHeader: false,
-    href: '/catalog',
-    icon: Box,
-    iconColor: 'text-pink-500'
-  },
+  // {
+  //   name: 'Service Catalog',
+  //   isHeader: false,
+  //   href: '/catalog',
+  //   icon: Box,
+  //   iconColor: 'text-pink-500'
+  // },
 ]
 
 const bottomNavigation: NavItem[] = [
-  { name: 'Users', href: '/users', icon: User, iconColor: 'text-gray-700', isHeader: false },
-  { name: 'Teams', href: '/teams', icon: Users, iconColor: 'text-gray-700', isHeader: false },
+  // { name: 'Users', href: '/users', icon: User, iconColor: 'text-gray-700', isHeader: false },
+  // { name: 'Teams', href: '/teams', icon: Users, iconColor: 'text-gray-700', isHeader: false },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  refreshCatalogRef?: React.MutableRefObject<(() => void) | null>
+}
+
+export function Sidebar({ refreshCatalogRef }: SidebarProps = {}) {
+  const { currentTenant } = useAuth()
+  const tenantIdRef = useRef<string | null>(null)
+
   // State to track expanded items by their path string (e.g. "0-0")
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     '1': true // Developer section open by default (now at index 1)
@@ -83,6 +92,28 @@ export function Sidebar() {
     y: number
   } | null>(null)
   const contextMenuRef = useRef<HTMLDivElement>(null)
+
+  // Expose loadCatalogData function through ref
+  useEffect(() => {
+    if (refreshCatalogRef) {
+      refreshCatalogRef.current = loadCatalogData
+    }
+  }, [refreshCatalogRef])
+
+  // Reload catalog data when tenant changes
+  useEffect(() => {
+    if (currentTenant?.id) {
+      // Initialize tenant ref on first load
+      if (tenantIdRef.current === null) {
+        tenantIdRef.current = currentTenant.id
+        loadCatalogData()
+      } else if (tenantIdRef.current !== currentTenant.id) {
+        // Tenant has changed - reload catalog data
+        tenantIdRef.current = currentTenant.id
+        loadCatalogData()
+      }
+    }
+  }, [currentTenant])
 
   useEffect(() => {
     loadCatalogData()
@@ -266,7 +297,7 @@ export function Sidebar() {
           style={{ paddingLeft: `${level * 0.5 + 0.5}rem` }}
         >
           <div className="flex items-center gap-2">
-            {page.icon && <span className="text-xs">{page.icon}</span>}
+            {page.icon && <IconDisplay name={page.icon as string} className="w-4 h-4" />}
             <span className="truncate font-semibold">{page.title}</span>
           </div>
         </NavLink>
@@ -370,8 +401,8 @@ export function Sidebar() {
 
   return (
     <aside className="w-48 border-r bg-gray-50/50 flex flex-col h-full">
-      {/* Search and New Button */}
-      <div className="p-3 space-y-3">
+        {/* Search and New Button */}
+        <div className="p-3 space-y-3">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
           <input

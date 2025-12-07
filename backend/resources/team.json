@@ -1,0 +1,447 @@
+{
+    "identifier": "_team",
+    "description": "This blueprint is synced with Port teams",
+    "title": "Team",
+    "icon": "Users",
+    "schema": {
+        "properties": {
+            "description": {
+                "type": "string",
+                "title": "Description"
+            },
+            "google_group": {
+                "title": "Google Group",
+                "type": "string",
+                "icon": "DefaultProperty"
+            }
+        },
+        "required": []
+    },
+    "mirrorProperties": {
+        "tech_leads_emails": {
+            "title": "Tech Leads",
+            "path": "tech_leads.email"
+        },
+        "manager_email": {
+            "title": "Manager",
+            "path": "manager.email"
+        },
+        "product_owners_email": {
+            "title": "Product Owners",
+            "path": "product_owners.email"
+        }
+    },
+    "calculationProperties": {
+        "slack_channel": {
+            "title": "Slack Channel",
+            "icon": "Slack",
+            "calculation": "\"https://slack.com/workspace/team\" + .identifier",
+            "type": "string",
+            "format": "url"
+        },
+        "slack_user_group": {
+            "title": "Slack user group",
+            "icon": "Slack",
+            "calculation": "\"https://slack.com/workspace/group-\" + .identifier",
+            "type": "string",
+            "format": "url"
+        },
+        "sentry_team": {
+            "title": "Sentry Team",
+            "icon": "Sentry",
+            "calculation": "\"https://org.sentry.io/teams/\" + .identifier",
+            "type": "string",
+            "format": "url"
+        },
+        "atlassian_team": {
+            "title": "Atlassian Team",
+            "icon": "Jira",
+            "calculation": "\"https://atlassian.com/team/\" + .identifier",
+            "type": "string",
+            "format": "url"
+        },
+        "sprint_board": {
+            "title": "Sprint Board",
+            "icon": "Jira",
+            "calculation": "\"https://atlassian.com/sprint/\" + .identifier",
+            "type": "string",
+            "format": "url"
+        },
+        "figma": {
+            "title": "Figma",
+            "icon": "Figma",
+            "calculation": "\"https://figma.com/team/\" + .identifier",
+            "type": "string",
+            "format": "url"
+        },
+        "wiki": {
+            "title": "Wiki",
+            "icon": "Confluence",
+            "calculation": "\"https://atlassian.com/team/\" + .identifier",
+            "type": "string",
+            "format": "url"
+        },
+        "mean_change_failure_rate": {
+            "title": "Mean Change failure rate",
+            "icon": "DefaultProperty",
+            "calculation": ".properties.total_incident_count as $incidents | .properties.total_deployments as $deployments |  if $deployments == 0 then 100 else $incidents / ($deployments + $incidents) * 100 end | floor",
+            "type": "number"
+        },
+        "developer_experience_metric": {
+            "title": "Developer Experience Metric",
+            "calculation": "4.2",
+            "type": "number"
+        },
+        "developing_new_features": {
+            "title": "Developing new features %",
+            "calculation": "45.7",
+            "type": "number"
+        }
+    },
+    "aggregationProperties": {
+        "size": {
+            "title": "Size",
+            "type": "number",
+            "target": "_user",
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "open_sonar_issues": {
+            "title": "Open Sonar Issue",
+            "icon": "sonarqube",
+            "type": "number",
+            "target": "sonarQubeIssue",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "status",
+                        "operator": "=",
+                        "value": "OPEN"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "jira_open_urgent_bugs": {
+            "title": "Open Jira Bugs",
+            "icon": "Jira",
+            "type": "number",
+            "description": "Number of high priority open Jira bugs",
+            "target": "jiraIssue",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "status",
+                        "operator": "!=",
+                        "value": "Done"
+                    },
+                    {
+                        "property": "issueType",
+                        "operator": "=",
+                        "value": "Bug"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "jira_open_urgent_epic": {
+            "title": "Open Jira Epic",
+            "icon": "Jira",
+            "type": "number",
+            "description": "Number of high priority open Jira epics",
+            "target": "jiraIssue",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "status",
+                        "operator": "!=",
+                        "value": "Done"
+                    },
+                    {
+                        "property": "issueType",
+                        "operator": "=",
+                        "value": "Epic"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "jira_open_story": {
+            "title": "Open Jira Story",
+            "icon": "Jira",
+            "type": "number",
+            "description": "Number of high priority open Jira stories",
+            "target": "jiraIssue",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "status",
+                        "operator": "!=",
+                        "value": "Done"
+                    },
+                    {
+                        "property": "issueType",
+                        "operator": "=",
+                        "value": "Story"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "deployment_frequency": {
+            "title": "Deployment Frequency",
+            "type": "number",
+            "target": "service",
+            "calculationSpec": {
+                "func": "average",
+                "averageOf": "total",
+                "property": "deployment_frequency",
+                "calculationBy": "property",
+                "measureTimeBy": "$createdAt"
+            }
+        },
+        "lead_time_for_change": {
+            "title": "Lead time for change",
+            "icon": "DefaultProperty",
+            "type": "number",
+            "target": "service",
+            "calculationSpec": {
+                "func": "average",
+                "averageOf": "total",
+                "property": "lead_time_for_change",
+                "measureTimeBy": "$createdAt",
+                "calculationBy": "property"
+            }
+        },
+        "mttr": {
+            "title": "MTTR",
+            "type": "number",
+            "target": "service",
+            "calculationSpec": {
+                "func": "average",
+                "averageOf": "total",
+                "property": "mean_time_to_recovery",
+                "calculationBy": "property",
+                "measureTimeBy": "$createdAt"
+            }
+        },
+        "total_incident_count": {
+            "title": "Total Incident Count",
+            "icon": "DefaultProperty",
+            "type": "number",
+            "target": "service",
+            "calculationSpec": {
+                "func": "sum",
+                "property": "incidents_last_month",
+                "calculationBy": "property"
+            }
+        },
+        "weekly_p_rs_merge": {
+            "title": "Weekly PRs Merge",
+            "icon": "DefaultProperty",
+            "type": "number",
+            "target": "service",
+            "calculationSpec": {
+                "func": "median",
+                "property": "weeklyPrsMerged",
+                "calculationBy": "property"
+            }
+        },
+        "cloud_cost": {
+            "title": "Cloud Cost",
+            "icon": "Opencost",
+            "type": "number",
+            "target": "cloudResource",
+            "calculationSpec": {
+                "func": "sum",
+                "property": "cost",
+                "calculationBy": "property"
+            }
+        },
+        "pr_created_last_month": {
+            "title": "PR created last month",
+            "type": "number",
+            "target": "githubPullRequest",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "createdAt",
+                        "operator": "between",
+                        "value": {
+                            "preset": "lastWeek"
+                        }
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "pr_merged_last_month": {
+            "title": "PR merged last month",
+            "type": "number",
+            "target": "githubPullRequest",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "mergedAt",
+                        "operator": "between",
+                        "value": {
+                            "preset": "lastWeek"
+                        }
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "completed_jra_issues": {
+            "title": "Completed Jra Issues",
+            "icon": "Jira",
+            "type": "number",
+            "target": "jiraIssue",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "status",
+                        "operator": "=",
+                        "value": "Done"
+                    },
+                    {
+                        "property": "issueType",
+                        "operator": "=",
+                        "value": "Bug"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "total_deployments": {
+            "title": "Total Deployments",
+            "type": "number",
+            "target": "service",
+            "calculationSpec": {
+                "func": "sum",
+                "property": "total_deployments_last_month",
+                "calculationBy": "property"
+            }
+        },
+        "on_call_balance_over_time": {
+            "title": "On call balance over time",
+            "type": "number",
+            "target": "devex_survey_response",
+            "calculationSpec": {
+                "func": "average",
+                "averageOf": "total",
+                "property": "oncall_balance",
+                "calculationBy": "property",
+                "measureTimeBy": "$createdAt"
+            }
+        },
+        "total_active_users": {
+            "title": "GH Copilot Total Active Users",
+            "icon": "DefaultProperty",
+            "type": "number",
+            "target": "git_hub_copilot_usage_record",
+            "calculationSpec": {
+                "func": "average",
+                "averageOf": "total",
+                "property": "total_active_users",
+                "calculationBy": "property",
+                "measureTimeBy": "$createdAt"
+            }
+        },
+        "gh_copilot_acceptance_rate": {
+            "title": "GH Copilot Acceptance Rate",
+            "type": "number",
+            "target": "git_hub_copilot_usage_record",
+            "calculationSpec": {
+                "func": "average",
+                "averageOf": "total",
+                "property": "acceptance_rate",
+                "calculationBy": "property",
+                "measureTimeBy": "$createdAt"
+            }
+        },
+        "code_coverage": {
+            "title": "Code coverage",
+            "icon": "DefaultProperty",
+            "type": "number",
+            "target": "service",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "coverage",
+                        "operator": "isNotEmpty"
+                    },
+                    {
+                        "property": "on_call",
+                        "operator": "isNotEmpty"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "average",
+                "averageOf": "total",
+                "property": "coverage",
+                "measureTimeBy": "$createdAt",
+                "calculationBy": "property"
+            }
+        }
+    },
+    "relations": {
+        "product_owners": {
+            "title": "Product Owners",
+            "target": "_user",
+            "required": false,
+            "many": true
+        },
+        "port_domain": {
+            "title": "Port Domain",
+            "description": "The team's domain",
+            "target": "domain",
+            "required": false,
+            "many": false
+        },
+        "tech_leads": {
+            "title": "Tech Leads",
+            "target": "_user",
+            "required": false,
+            "many": true
+        },
+        "manager": {
+            "title": "Manager",
+            "target": "_user",
+            "required": false,
+            "many": false
+        }
+    }
+}

@@ -4,6 +4,7 @@ import { Blueprint } from '../../types/blueprint';
 import { entityService } from '../../services/entity.service';
 import { CreateEntityData, Entity } from '../../types/entity';
 import { IconPickerModal } from '../datamodel/IconPickerModal';
+import { IconDisplay } from '../IconDisplay';
 
 interface EntityCreationModalProps {
   blueprint: Blueprint;
@@ -99,7 +100,7 @@ export function EntityCreationModal({ blueprint, onClose, onSuccess }: EntityCre
   };
 
   const renderPropertyInput = (propertyKey: string, propertyDef: any) => {
-    const { type, title: propTitle, description, enum: enumValues } = propertyDef;
+    const { type, description, enum: enumValues } = propertyDef;
 
     // Handle enum (select dropdown)
     if (enumValues && Array.isArray(enumValues)) {
@@ -202,7 +203,7 @@ export function EntityCreationModal({ blueprint, onClose, onSuccess }: EntityCre
     }
   };
 
-  const renderRelationInput = (relationKey: string, relationDef: any) => {
+  const renderRelationInput = (relationKey: string) => {
     const entities = relationEntities[relationKey] || [];
 
     return (
@@ -234,7 +235,7 @@ export function EntityCreationModal({ blueprint, onClose, onSuccess }: EntityCre
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center gap-2">
-            <span className="text-lg">{blueprint.icon}</span>
+            {blueprint.icon && <IconDisplay name={blueprint.icon} className="w-6 h-6 text-gray-700" />}
             <h2 className="text-base font-semibold text-gray-900">
               New {blueprint.title}
             </h2>
@@ -317,7 +318,7 @@ export function EntityCreationModal({ blueprint, onClose, onSuccess }: EntityCre
                 onClick={() => setShowIconPicker(true)}
                 className="w-14 h-10 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-2xl flex items-center justify-center transition-colors"
               >
-                {icon}
+                <IconDisplay name={icon} className="w-6 h-6 text-gray-700" />
               </button>
             </div>
 
@@ -342,7 +343,7 @@ export function EntityCreationModal({ blueprint, onClose, onSuccess }: EntityCre
                   <span>🔗</span>
                   {def.title || key}
                 </label>
-                {renderRelationInput(key, def)}
+                {renderRelationInput(key)}
               </div>
             ))}
           </div>

@@ -1,6 +1,7 @@
 import { createContext, useContext, ReactNode } from 'react'
 import { useColumnConfig } from '@/hooks/useColumnConfig'
 import { ColumnConfig, ColumnDefinition } from '@/types/catalog'
+import { Blueprint } from '@/types/blueprint'
 
 interface ColumnConfigContextType {
   columnConfig: ColumnConfig[]
@@ -14,8 +15,14 @@ interface ColumnConfigContextType {
 
 const ColumnConfigContext = createContext<ColumnConfigContextType | undefined>(undefined)
 
-export function ColumnConfigProvider({ children }: { children: ReactNode }) {
-  const columnConfigValue = useColumnConfig()
+interface ColumnConfigProviderProps {
+  children: ReactNode
+  blueprint?: Blueprint
+  savedColumns?: string[]
+}
+
+export function ColumnConfigProvider({ children, blueprint, savedColumns }: ColumnConfigProviderProps) {
+  const columnConfigValue = useColumnConfig(blueprint, savedColumns)
 
   return (
     <ColumnConfigContext.Provider value={columnConfigValue}>

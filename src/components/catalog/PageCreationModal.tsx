@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { X, Info, Building2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Info, Building2, ChevronDown } from 'lucide-react';
 import catalogPageService from '../../services/catalogPage.service';
 import { blueprintApi } from '../../services/blueprint.service';
-import { CatalogFolder } from '../../types/catalogPage';
 import { Blueprint } from '../../types/blueprint';
 import { IconPickerModal } from '../datamodel/IconPickerModal';
+import { IconDisplay } from '../IconDisplay';
 
 interface PageCreationModalProps {
     onClose: () => void;
@@ -20,14 +20,28 @@ export default function PageCreationModal({ onClose, onSuccess, folderId }: Page
     const [showIconPicker, setShowIconPicker] = useState(false);
     const [description, setDescription] = useState('');
     const [blueprintId, setBlueprintId] = useState('');
-    const [excludedProperties, setExcludedProperties] = useState<string[]>([]);
-    const [selectedFolderId, setSelectedFolderId] = useState(folderId || '');
-    const [layout, setLayout] = useState<'table' | 'grid' | 'list'>('table');
-    const [isPublic, setIsPublic] = useState(true);
-    const [folders, setFolders] = useState<CatalogFolder[]>([]);
+    const [selectedFolderId] = useState(folderId || '');
+    const [layout] = useState<'table' | 'grid' | 'list'>('table');
+    const [isPublic] = useState(true);
     const [blueprints, setBlueprints] = useState<Blueprint[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showBlueprintDropdown, setShowBlueprintDropdown] = useState(false);
+    const blueprintDropdownRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (blueprintDropdownRef.current && !blueprintDropdownRef.current.contains(event.target as Node)) {
+                setShowBlueprintDropdown(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     // Auto-generate identifier from title
     useEffect(() => {
@@ -51,7 +65,9 @@ export default function PageCreationModal({ onClose, onSuccess, folderId }: Page
                 blueprintApi.getAll()
             ]);
 
-            if (foldersRes.ok) setFolders(foldersRes.folders);
+            if (foldersRes.ok) {
+                // folders are loaded but currently unused in UI, kept logic for potential future use or debugging
+            }
             setBlueprints(blueprints);
         } catch (error) {
             console.error('Failed to load data:', error);
@@ -181,46 +197,64 @@ export default function PageCreationModal({ onClose, onSuccess, folderId }: Page
                             <button
                                 type="button"
                                 onClick={() => setShowIconPicker(true)}
-                                className="w-14 h-10 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-2xl flex items-center justify-center transition-colors"
+                                className="w-14 h-10 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-center transition-colors"
                             >
-                                {icon}
+                                <IconDisplay name={icon} className="w-6 h-6 text-gray-700" />
                             </button>
                         </div>
 
                         {/* Blueprint */}
-                        <div>
+                        <div className="relative" ref={blueprintDropdownRef}>
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                 Blueprint<span className="text-red-500">*</span>
                             </label>
-                            <select
-                                value={blueprintId}
-                                onChange={(e) => setBlueprintId(e.target.value)}
-                                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                required
-                            >
-                                <option value="">Choose a value</option>
-                                {blueprints.map(blueprint => (
-                                    <option key={blueprint.identifier} value={blueprint.identifier}>
-                                        {blueprint.icon} {blueprint.title}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
 
-                        {/* Excluded Properties */}
-                        <div>
-                            <div className="flex items-center gap-1.5 mb-1.5">
-                                <label className="text-sm font-medium text-gray-700">
-                                    Excluded Properties
-                                </label>
-                                <Info className="h-3.5 w-3.5 text-gray-400" />
-                            </div>
                             <button
                                 type="button"
-                                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-left text-gray-400"
+                                onClick={() => setShowBlueprintDropdown(!showBlueprintDropdown)}
+                                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between"
                             >
-                                Select
+                                <div className="flex items-center gap-2">
+                                    {blueprintId ? (
+                                        (() => {
+                                            const selected = blueprints.find(b => b.identifier === blueprintId);
+                                            return selected ? (
+                                                <>
+                                                    <IconDisplay name={selected.icon || '📦'} className="w-4 h-4 text-gray-500" />
+                                                    <span className="text-gray-900">{selected.title}</span>
+                                                </>
+                                            ) : <span className="text-gray-500">Choose a value</span>;
+                                        })()
+                                    ) : (
+                                        <span className="text-gray-500">Choose a value</span>
+                                    )}
+                                </div>
+                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showBlueprintDropdown ? 'rotate-180' : ''}`} />
                             </button>
+
+                            {showBlueprintDropdown && (
+                                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                    {blueprints.length === 0 ? (
+                                        <div className="px-3 py-2 text-sm text-gray-500">No blueprints available</div>
+                                    ) : (
+                                        blueprints.map(blueprint => (
+                                            <button
+                                                key={blueprint.identifier}
+                                                type="button"
+                                                onClick={() => {
+                                                    setBlueprintId(blueprint.identifier);
+                                                    setShowBlueprintDropdown(false);
+                                                }}
+                                                className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 ${blueprintId === blueprint.identifier ? 'bg-blue-50 text-blue-700' : 'text-gray-900'
+                                                    }`}
+                                            >
+                                                <IconDisplay name={blueprint.icon || '📦'} className={`w-4 h-4 ${blueprintId === blueprint.identifier ? 'text-blue-600' : 'text-gray-500'}`} />
+                                                <span>{blueprint.title}</span>
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Initial filters */}

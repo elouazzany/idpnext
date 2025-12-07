@@ -1,6 +1,7 @@
 import { ActionTemplate } from '@/types/self-service'
 import { Clock, ShieldCheck, Play } from 'lucide-react'
 import { useState } from 'react'
+import { IconDisplay } from '../IconDisplay'
 
 interface ActionTemplateCardProps {
   template: ActionTemplate
@@ -13,7 +14,7 @@ export function ActionTemplateCard({ template }: ActionTemplateCardProps) {
     <>
       <div className="bg-white rounded-lg border hover:shadow-lg transition-all p-5 cursor-pointer group">
         <div className="flex items-start justify-between mb-3">
-          <div className="text-4xl">{template.icon}</div>
+          <IconDisplay name={template.icon} className="w-10 h-10 text-gray-700" />
           {template.approvalRequired && (
             <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
               <ShieldCheck className="h-3 w-3" />

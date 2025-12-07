@@ -26,7 +26,17 @@ export const getBlueprint = async (req: Request, res: Response) => {
         const organizationId = req.headers['x-organization-id'] as string;
         const tenantId = req.headers['x-tenant-id'] as string;
 
-        const blueprint = await blueprintService.getById(req.params.id, organizationId, tenantId);
+        // Try to find by identifier first as it covers _user, _team etc
+        let blueprint = await blueprintService.getByIdentifier(req.params.id, organizationId, tenantId);
+
+        // If not found, try by ID (UUID)
+        if (!blueprint) {
+            const byId = await blueprintService.getById(req.params.id);
+            // Verify ownership
+            if (byId && (byId.organizationId === organizationId && byId.tenantId === tenantId)) {
+                blueprint = byId;
+            }
+        }
         if (!blueprint) {
             return res.status(404).json({
                 ok: false,
@@ -115,7 +125,16 @@ export const updateBlueprint = async (req: Request, res: Response) => {
         const tenantId = req.headers['x-tenant-id'] as string;
 
         // Get current state before update
-        const beforeState = await blueprintService.getById(req.params.id, organizationId, tenantId);
+        // Get current state before update
+        // Try to find by identifier first
+        let beforeState = await blueprintService.getByIdentifier(req.params.id, organizationId, tenantId);
+
+        if (!beforeState) {
+            const byId = await blueprintService.getById(req.params.id);
+            if (byId && (byId.organizationId === organizationId && byId.tenantId === tenantId)) {
+                beforeState = byId;
+            }
+        }
 
         if (!beforeState) {
             return res.status(404).json({
@@ -146,7 +165,7 @@ export const updateBlueprint = async (req: Request, res: Response) => {
             updatedBy: (req as any).user?.id
         };
 
-        const blueprint = await blueprintService.update(req.params.id, updateData);
+        const blueprint = await blueprintService.update(beforeState.identifier, organizationId, tenantId, updateData);
 
         // Log audit with diff
         await auditLogService.create({
@@ -203,7 +222,16 @@ export const deleteBlueprint = async (req: Request, res: Response) => {
         console.log('Deleting blueprint with identifier:', req.params.id);
 
         // Get blueprint details before deletion
-        const blueprint = await blueprintService.getById(req.params.id, organizationId, tenantId);
+        // Get blueprint details before deletion
+        // Try to find by identifier first
+        let blueprint = await blueprintService.getByIdentifier(req.params.id, organizationId, tenantId);
+
+        if (!blueprint) {
+            const byId = await blueprintService.getById(req.params.id);
+            if (byId && (byId.organizationId === organizationId && byId.tenantId === tenantId)) {
+                blueprint = byId;
+            }
+        }
 
         if (!blueprint) {
             console.log('Blueprint not found for deletion:', req.params.id);
@@ -213,7 +241,7 @@ export const deleteBlueprint = async (req: Request, res: Response) => {
             });
         }
 
-        await blueprintService.delete(req.params.id);
+        await blueprintService.delete(blueprint.identifier, organizationId, tenantId);
 
         // Log audit
         await auditLogService.create({

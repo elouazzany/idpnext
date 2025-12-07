@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useQueryClient, useQuery } from '@tanstack/react-query'
 import ReactFlow, {
     Edge,
@@ -28,6 +28,7 @@ import {
 import { BlueprintCreationModal } from '../../components/datamodel/BlueprintCreationModal'
 import { BlueprintEditorModal } from '../../components/datamodel/BlueprintEditorModal'
 import { ConfirmDeleteModal } from '../../components/datamodel/ConfirmDeleteModal'
+import { IconDisplay } from '../../components/IconDisplay'
 import { Blueprint } from '@/types/blueprint'
 import { blueprintApi } from '@/services/blueprint.service'
 import { useAuth } from '@/contexts/AuthContext'
@@ -45,7 +46,7 @@ function CustomNode({ data }: NodeProps<CustomNodeData>) {
 
             <div className="flex items-center gap-3">
                 <div className="p-2 bg-pink-50 rounded-md flex items-center justify-center">
-                    <span className="text-xl">{data.blueprint.icon || '📦'}</span>
+                    <IconDisplay name={data.blueprint.icon || '📦'} className="w-6 h-6 text-pink-600" />
                 </div>
                 <span className="font-medium text-gray-900">{data.blueprint.title}</span>
             </div>
@@ -84,7 +85,10 @@ export function DataModelPage() {
     const { data: blueprints = [], isLoading } = useQuery({
         queryKey: ['blueprints', currentOrganization?.id, currentTenant?.id],
         queryFn: () => blueprintApi.getAll(),
-        enabled: !!currentOrganization && !!currentTenant
+        enabled: !!currentOrganization && !!currentTenant,
+        // Prevent unnecessary re-renders during drag operations
+        refetchOnWindowFocus: false,
+        staleTime: 1000,
     })
 
     const [nodes, setNodes, onNodesChange] = useNodesState([])
@@ -95,42 +99,69 @@ export function DataModelPage() {
         [setEdges]
     )
 
-    // Reconstruct nodes and edges when blueprints change
-    useEffect(() => {
+    // Create a stable serialized version of blueprints to detect real changes
+    const blueprintsHash = useMemo(() => {
+        return JSON.stringify(blueprints.map(b => ({
+            id: b.identifier,
+            relations: b.relations
+        })));
+    }, [blueprints])
 
-        // Convert to ReactFlow nodes
-        const flowNodes = blueprints.map((blueprint, index) => ({
-            id: blueprint.identifier,
-            type: 'custom' as const,
-            position: { x: 100 + (index % 3) * 300, y: 100 + Math.floor(index / 3) * 150 },
-            data: {
-                blueprint,
-                onMaximize: () => setEditingBlueprint(blueprint)
-            }
-        }));
-
-        setNodes(flowNodes);
-
-        // Reconstruct edges from blueprint relations
+    // Memoize edges based on blueprint relations only
+    const computedEdges = useMemo(() => {
         const relationEdges: Edge[] = [];
         blueprints.forEach((blueprint) => {
             if (blueprint.relations && typeof blueprint.relations === 'object') {
-                Object.entries(blueprint.relations).forEach(([_relationId, relation]: [string, any]) => {
+                Object.entries(blueprint.relations).forEach(([relationId, relation]: [string, any]) => {
                     if (relation.target) {
+                        const edgeId = `${blueprint.identifier}-${relation.target}-${relationId}`;
                         relationEdges.push({
-                            id: `${blueprint.identifier}-${relation.target}`,
+                            id: edgeId,
                             source: blueprint.identifier,
                             target: relation.target,
                             type: 'default',
                             animated: false,
+                            label: relation.title,
                         });
                     }
                 });
             }
         });
+        return relationEdges;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [blueprintsHash])
 
-        setEdges(relationEdges);
-    }, [blueprints, setNodes, setEdges])
+    // Update edges only when computed edges change
+    useEffect(() => {
+        setEdges(computedEdges);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [computedEdges])
+
+    // Reconstruct nodes when blueprints change
+    useEffect(() => {
+        console.log('[DataModelPage] Blueprints updated, syncing graph nodes', blueprints.length);
+
+        setNodes((currentNodes) => {
+            return blueprints.map((blueprint, index) => {
+                const existingNode = currentNodes.find((n) => n.id === blueprint.identifier);
+
+                // If it exists, keep its position. If not, assign initial position.
+                return {
+                    id: blueprint.identifier,
+                    type: 'custom' as const,
+                    position: existingNode ? existingNode.position : {
+                        x: 100 + (index % 3) * 300,
+                        y: 100 + Math.floor(index / 3) * 150
+                    },
+                    data: {
+                        blueprint,
+                        onMaximize: () => setEditingBlueprint(blueprint)
+                    },
+                };
+            });
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [blueprintsHash])
 
     const handleCreateBlueprint = async (blueprint: Blueprint) => {
         try {
@@ -225,18 +256,7 @@ export function DataModelPage() {
                 }
             }
 
-            // Create edge in ReactFlow
-            const newEdge: Edge = {
-                id: `${editingBlueprint.identifier}-${relation.targetBlueprintId}-${relation.identifier}`,
-                source: editingBlueprint.identifier,
-                target: relation.targetBlueprintId,
-                label: relation.title,
-                type: 'default',
-                animated: false
-            }
-            setEdges(eds => [...eds, newEdge])
-
-            // Update the blueprint
+            // Update the blueprint - edges will be automatically created by the useEffect
             const updatedBlueprint = {
                 ...editingBlueprint,
                 relations: updatedRelations
@@ -401,8 +421,19 @@ export function DataModelPage() {
                         onConnect={onConnect}
                         nodeTypes={nodeTypes}
                         fitView
+                        fitViewOptions={{ padding: 0.2 }}
                         attributionPosition="bottom-left"
                         className="bg-gray-50"
+                        edgesUpdatable={false}
+                        edgesFocusable={false}
+                        nodesDraggable={true}
+                        nodesConnectable={true}
+                        elementsSelectable={true}
+                        deleteKeyCode={null}
+                        multiSelectionKeyCode={null}
+                        panOnDrag={true}
+                        zoomOnScroll={true}
+                        preventScrolling={true}
                     >
                         <Controls />
                         <Background color="#e5e7eb" gap={16} size={0.5} />
@@ -417,8 +448,8 @@ export function DataModelPage() {
                                 >
                                     {/* Large Icon Area */}
                                     <div className="bg-gradient-to-b from-gray-50 to-white p-6 flex items-center justify-center min-h-[120px] border-b border-gray-100 relative">
-                                        <div className="w-14 h-14 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform duration-200">
-                                            {blueprint.icon || '📦'}
+                                        <div className="w-14 h-14 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                                            <IconDisplay name={blueprint.icon || '📦'} className="w-8 h-8 text-gray-700" />
                                         </div>
 
                                         {/* Quick Actions Overlay */}

@@ -10,8 +10,8 @@ export class EntityController {
         try {
             const { blueprint_identifier } = req.params;
             const { limit, offset } = req.query;
-            const organizationId = (req as any).user?.organizationId;
-            const tenantId = (req as any).user?.tenantId;
+            const organizationId = req.headers['x-organization-id'] as string;
+            const tenantId = req.headers['x-tenant-id'] as string;
 
             const result = await entityService.getAll(
                 blueprint_identifier,
@@ -41,8 +41,8 @@ export class EntityController {
     async getOne(req: Request, res: Response) {
         try {
             const { blueprint_identifier, entity_identifier } = req.params;
-            const organizationId = (req as any).user?.organizationId;
-            const tenantId = (req as any).user?.tenantId;
+            const organizationId = req.headers['x-organization-id'] as string;
+            const tenantId = req.headers['x-tenant-id'] as string;
 
             const entity = await entityService.getByIdentifier(
                 blueprint_identifier,
@@ -77,8 +77,8 @@ export class EntityController {
     async getCount(req: Request, res: Response) {
         try {
             const { blueprint_identifier } = req.params;
-            const organizationId = (req as any).user?.organizationId;
-            const tenantId = (req as any).user?.tenantId;
+            const organizationId = req.headers['x-organization-id'] as string;
+            const tenantId = req.headers['x-tenant-id'] as string;
 
             const count = await entityService.getCount(
                 blueprint_identifier,
@@ -105,8 +105,8 @@ export class EntityController {
     async create(req: Request, res: Response) {
         try {
             const { blueprint_identifier } = req.params;
-            const organizationId = (req as any).user?.organizationId;
-            const tenantId = (req as any).user?.tenantId;
+            const organizationId = req.headers['x-organization-id'] as string;
+            const tenantId = req.headers['x-tenant-id'] as string;
             const userId = (req as any).user?.id;
 
             // Check request size
@@ -152,8 +152,8 @@ export class EntityController {
         try {
             const { blueprint_identifier } = req.params;
             const { entities } = req.body;
-            const organizationId = (req as any).user?.organizationId;
-            const tenantId = (req as any).user?.tenantId;
+            const organizationId = req.headers['x-organization-id'] as string;
+            const tenantId = req.headers['x-tenant-id'] as string;
             const userId = (req as any).user?.id;
 
             // Check request size
@@ -210,8 +210,8 @@ export class EntityController {
     async update(req: Request, res: Response) {
         try {
             const { blueprint_identifier, entity_identifier } = req.params;
-            const organizationId = (req as any).user?.organizationId;
-            const tenantId = (req as any).user?.tenantId;
+            const organizationId = req.headers['x-organization-id'] as string;
+            const tenantId = req.headers['x-tenant-id'] as string;
             const userId = (req as any).user?.id;
 
             // Check request size
@@ -265,8 +265,8 @@ export class EntityController {
     async replace(req: Request, res: Response) {
         try {
             const { blueprint_identifier, entity_identifier } = req.params;
-            const organizationId = (req as any).user?.organizationId;
-            const tenantId = (req as any).user?.tenantId;
+            const organizationId = req.headers['x-organization-id'] as string;
+            const tenantId = req.headers['x-tenant-id'] as string;
             const userId = (req as any).user?.id;
 
             // Check request size
@@ -322,8 +322,8 @@ export class EntityController {
     async delete(req: Request, res: Response) {
         try {
             const { blueprint_identifier, entity_identifier } = req.params;
-            const organizationId = (req as any).user?.organizationId;
-            const tenantId = (req as any).user?.tenantId;
+            const organizationId = req.headers['x-organization-id'] as string;
+            const tenantId = req.headers['x-tenant-id'] as string;
             const userId = (req as any).user?.id;
 
             await entityService.delete(
@@ -359,8 +359,8 @@ export class EntityController {
     async deleteAll(req: Request, res: Response) {
         try {
             const { blueprint_identifier } = req.params;
-            const organizationId = (req as any).user?.organizationId;
-            const tenantId = (req as any).user?.tenantId;
+            const organizationId = req.headers['x-organization-id'] as string;
+            const tenantId = req.headers['x-tenant-id'] as string;
 
             await entityService.deleteAll(
                 blueprint_identifier,
@@ -388,8 +388,8 @@ export class EntityController {
         try {
             const { blueprint_identifier } = req.params;
             const { identifiers, delete_dependents = false } = req.body;
-            const organizationId = (req as any).user?.organizationId;
-            const tenantId = (req as any).user?.tenantId;
+            const organizationId = req.headers['x-organization-id'] as string;
+            const tenantId = req.headers['x-tenant-id'] as string;
 
             // Check request size
             const requestSize = JSON.stringify(req.body).length;
@@ -442,8 +442,8 @@ export class EntityController {
     async search(req: Request, res: Response) {
         try {
             const { rules, combinator, limit, offset } = req.body;
-            const organizationId = (req as any).user?.organizationId;
-            const tenantId = (req as any).user?.tenantId;
+            const organizationId = req.headers['x-organization-id'] as string;
+            const tenantId = req.headers['x-tenant-id'] as string;
 
             // Check request size
             const requestSize = JSON.stringify(req.body).length;
@@ -488,8 +488,8 @@ export class EntityController {
     async aggregate(req: Request, res: Response) {
         try {
             const { blueprintId, function: aggFunction, property, groupBy, rules } = req.body;
-            const organizationId = (req as any).user?.organizationId;
-            const tenantId = (req as any).user?.tenantId;
+            const organizationId = req.headers['x-organization-id'] as string;
+            const tenantId = req.headers['x-tenant-id'] as string;
 
             // Check request size
             const requestSize = JSON.stringify(req.body).length;
@@ -539,8 +539,8 @@ export class EntityController {
     async getHistory(req: Request, res: Response) {
         try {
             const { blueprintId, identifier, properties, startDate, endDate } = req.body;
-            const organizationId = (req as any).user?.organizationId;
-            const tenantId = (req as any).user?.tenantId;
+            const organizationId = req.headers['x-organization-id'] as string;
+            const tenantId = req.headers['x-tenant-id'] as string;
 
             // Check request size
             const requestSize = JSON.stringify(req.body).length;
@@ -593,9 +593,9 @@ export class EntityController {
     async searchInBlueprint(req: Request, res: Response) {
         try {
             const { blueprint_identifier } = req.params;
-            const { rules, combinator, limit, offset } = req.body;
-            const organizationId = (req as any).user?.organizationId;
-            const tenantId = (req as any).user?.tenantId;
+            const { rules, limit, offset } = req.body;
+            const organizationId = req.headers['x-organization-id'] as string;
+            const tenantId = req.headers['x-tenant-id'] as string;
 
             // Check request size
             const requestSize = JSON.stringify(req.body).length;

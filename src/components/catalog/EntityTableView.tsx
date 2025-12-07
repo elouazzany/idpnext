@@ -7,60 +7,209 @@ import { EmailCell } from './cells/EmailCell'
 import { LinkCell } from './cells/LinkCell'
 import { StatusCell } from './cells/StatusCell'
 import { EntityActionsMenu } from './EntityActionsMenu'
-import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
+import { IconDisplay } from '@/components/IconDisplay'
 
 interface EntityTableViewProps {
   filters: CatalogFilters
   onColumnConfig?: () => void
+  entities?: Entity[]  // Optional: if provided, use these instead of mockEntities
 }
 
 // Helper to get nested property value
 function getNestedValue(obj: any, path: string): any {
-  return path.split('.').reduce((acc, part) => acc?.[part], obj)
+  const value = path.split('.').reduce((acc, part) => acc?.[part], obj)
+  // If value is not found and object has properties, try to get from properties
+  if (value === undefined && obj.properties && path in obj.properties) {
+    return obj.properties[path]
+  }
+  return value
 }
 
-export function EntityTableView({ filters, onColumnConfig }: EntityTableViewProps) {
+export function EntityTableView({ filters, onColumnConfig, entities, groupBy = [] }: EntityTableViewProps & { groupBy?: string[] }) {
   const { visibleColumns } = useColumnConfigContext()
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
 
-  // Filter entities
-  const filteredEntities = mockEntities.filter((entity) => {
-    if (filters.types.length > 0 && !filters.types.includes(entity.type)) {
+  // Use provided entities or fallback to mockEntities
+  const sourceEntities = entities || mockEntities
+
+  // Grouping helper - creates a nested map structure
+  // groupBy: ['team', 'status']
+  // output: Map('Team A' -> Map('Active' -> [entities], 'Inactive' -> [entities]))
+  // Flattened for easy rendering: List of items where item is { type: 'header', key, level, count } or { type: 'entity', entity }
+
+  // Process entities (filter)
+  const filteredEntities = sourceEntities.filter((entity) => {
+    // ... same filtering logic ...
+    // Handle both catalog entities and Port.io entities
+    const entityType = entity.type || entity.properties?.type
+    const entityStatus = entity.status || entity.properties?.status
+    const entityOwner = entity.owner || entity.team || entity.properties?.owner
+    const entityTags = entity.tags || entity.properties?.tags || []
+    const entityName = entity.name || entity.title || entity.identifier
+    const entityDescription = entity.description || entity.properties?.description || ''
+
+    if (filters.types.length > 0 && entityType && !filters.types.includes(entityType)) {
       return false
     }
-    if (filters.statuses.length > 0 && !filters.statuses.includes(entity.status)) {
+    if (filters.statuses.length > 0 && entityStatus && !filters.statuses.includes(entityStatus)) {
       return false
     }
-    if (filters.teams.length > 0 && !filters.teams.includes(entity.owner)) {
+    if (filters.teams.length > 0 && entityOwner && !filters.teams.includes(entityOwner)) {
       return false
     }
-    if (filters.tags.length > 0 && !filters.tags.some((tag) => entity.tags.includes(tag))) {
+    if (filters.tags.length > 0 && entityTags.length > 0 && !filters.tags.some((tag) => entityTags.includes(tag))) {
       return false
     }
     if (filters.search) {
       const searchLower = filters.search.toLowerCase()
-      return (
-        entity.name.toLowerCase().includes(searchLower) ||
-        entity.description.toLowerCase().includes(searchLower) ||
-        entity.tags.some((tag) => tag.toLowerCase().includes(searchLower))
-      )
+      const nameMatch = entityName?.toLowerCase().includes(searchLower)
+      const descMatch = entityDescription?.toLowerCase().includes(searchLower)
+      const tagsMatch = Array.isArray(entityTags) && entityTags.some((tag) => tag.toLowerCase().includes(searchLower))
+      return nameMatch || descMatch || tagsMatch
     }
     return true
   })
 
-  // Pagination calculations
+  // Pagination logic on filtered set (simplification: paginate then group visible)
   const totalItems = filteredEntities.length
   const totalPages = Math.ceil(totalItems / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
   const paginatedEntities = filteredEntities.slice(startIndex, endIndex)
 
+  // Recursive grouping function
+  // Returns [ [key, value], ... ] where value is Entity[] or recursively nested structure
+  const groupEntities = (items: Entity[], groupKeys: string[], currentLevel: number = 0): any[] => {
+    if (currentLevel >= groupKeys.length) return items;
+
+    const key = groupKeys[currentLevel];
+    const grouped = items.reduce((acc, entity) => {
+      const value = getNestedValue(entity, key)
+      const displayValue = String(value || 'Unassigned')
+      if (!acc[displayValue]) acc[displayValue] = []
+      acc[displayValue].push(entity)
+      return acc
+    }, {} as Record<string, Entity[]>)
+
+    return Object.entries(grouped)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([groupValue, groupItems]) => ({
+        key: groupValue,
+        level: currentLevel,
+        items: groupEntities(groupItems, groupKeys, currentLevel + 1),
+        count: groupItems.length,
+        // Unique ID for expansion state: level0Key>level1Key...
+        id: groupValue // NOTE: This is simplistic, ideally pass parent ID path for uniqueness
+      }))
+  }
+
+  // We need full path IDs for robust expansion toggle
+  const generateGroupedData = (items: Entity[], keys: string[], parentPath: string = ''): any[] => {
+    if (keys.length === 0) return items;
+
+    const currentKey = keys[0];
+    const remainingKeys = keys.slice(1);
+
+    const grouped = items.reduce((acc, entity) => {
+      const val = getNestedValue(entity, currentKey)
+      const displayVal = String(val || 'Unassigned')
+      if (!acc[displayVal]) acc[displayVal] = []
+      acc[displayVal].push(entity)
+      return acc
+    }, {} as Record<string, Entity[]>)
+
+    return Object.entries(grouped)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([groupValue, groupItems]) => {
+        const uniqueId = parentPath ? `${parentPath}>${groupValue}` : groupValue;
+        return {
+          type: 'group',
+          value: groupValue,
+          uniqueId,
+          level: keys.length, // inversed? or just use depth from original call
+          count: groupItems.length, // total items in sub-tree
+          children: generateGroupedData(groupItems, remainingKeys, uniqueId)
+        }
+      })
+  }
+
+  // Actually, paginatedEntities is what we want to display.
+  // But if we group paginated items, the groups might be fragmented.
+  // Let's stick to grouping the paginated slice.
+
+  const groupedData = (groupBy && groupBy.length > 0)
+    ? generateGroupedData(paginatedEntities, groupBy)
+    : paginatedEntities; // if not grouped, just list of Entities
+
+  // Initialize expansion - expand all by default?
+  // Let's expand all by default for now or at least top level.
+  // We can do this in useEffect whenever data changes.
+  useEffect(() => {
+    if (groupBy && groupBy.length > 0) {
+      // Collect all group IDs to expand them by default
+      const collectIds = (nodes: any[]): string[] => {
+        return nodes.reduce((acc, node) => {
+          if (node.type === 'group') {
+            return [...acc, node.uniqueId, ...collectIds(node.children)]
+          }
+          return acc
+        }, [] as string[])
+      }
+      setExpandedGroups(new Set(collectIds(groupedData as any[])))
+    }
+  }, [groupBy, startIndex, itemsPerPage]) // Dependencies when displayed set changes
+
+  const toggleGroup = (id: string) => {
+    const newExpanded = new Set(expandedGroups)
+    if (newExpanded.has(id)) newExpanded.delete(id)
+    else newExpanded.add(id)
+    setExpandedGroups(newExpanded)
+  }
+
+  // Render function for recursive structure
+  const renderGroupedRows = (nodes: any[], depth: number = 0): React.ReactNode => {
+    return nodes.map((node: any) => {
+      if (node.type === 'group') {
+        const isExpanded = expandedGroups.has(node.uniqueId)
+        return (
+          <React.Fragment key={node.uniqueId}>
+            <tr className="bg-gray-50/50 hover:bg-gray-100/50 border-b border-gray-100">
+              <td colSpan={visibleColumns.length + 2} className="px-4 py-2 text-left">
+                <button
+                  onClick={() => toggleGroup(node.uniqueId)}
+                  className="flex items-center gap-2 w-full text-left"
+                  style={{ paddingLeft: `${depth * 20}px` }}
+                >
+                  <div className="p-0.5 hover:bg-gray-200 rounded">
+                    {isExpanded ? <ChevronDown className="h-4 w-4 text-gray-500" /> : <ChevronRight className="h-4 w-4 text-gray-500" />}
+                  </div>
+                  <div className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                    {node.value}
+                  </div>
+                  <span className="text-xs text-gray-500 bg-gray-200 px-1.5 rounded-full min-w-[20px] text-center">
+                    {node.count}
+                  </span>
+                </button>
+              </td>
+            </tr>
+            {isExpanded && renderGroupedRows(node.children, depth + 1)}
+          </React.Fragment>
+        )
+      } else {
+        // It's an entity
+        return renderRow(node)
+      }
+    })
+  }
+
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [filters.search, filters.types, filters.statuses, filters.teams, filters.tags])
+  }, [filters.search, filters.types, filters.statuses, filters.teams, filters.tags, groupBy]) // Reset on groupBy change too
 
   // Reset to page 1 if current page exceeds total pages
   useEffect(() => {
@@ -135,82 +284,108 @@ export function EntityTableView({ filters, onColumnConfig }: EntityTableViewProp
     }
   }
 
-  return (
-    <div className="bg-white rounded-lg border overflow-hidden">
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              {/* Icon column */}
-              <th className="px-4 py-2 w-10"></th>
+  // Render logic components
+  const TableHeader = () => (
+    <thead className="bg-gray-50 border-b">
+      <tr>
+        {/* Icon column */}
+        <th className="px-4 py-2 w-10"></th>
 
-              {/* Dynamic columns */}
-              {visibleColumns.map((column) => (
-                <th
-                  key={column.id}
-                  className="px-4 py-2 text-left"
-                  style={{ width: column.width }}
-                >
-                  <div className="flex items-center gap-1">
-                    <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">
-                      {column.label}
+        {/* Dynamic columns */}
+        {visibleColumns.map((column) => (
+          <th
+            key={column.id}
+            className="px-4 py-2 text-left"
+            style={{ width: column.width }}
+          >
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">
+                {column.label}
+              </span>
+            </div>
+          </th>
+        ))}
+
+        {/* Actions column */}
+        <th className="px-4 py-2 text-right text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">
+          Actions
+        </th>
+      </tr>
+    </thead>
+  )
+
+  const renderRow = (entity: Entity) => (
+    <tr
+      key={entity.id}
+      className="hover:bg-gray-50 cursor-pointer transition-colors"
+    >
+      {/* Icon column */}
+      <td className="px-4 py-2.5">
+        <div className="h-6 w-6 rounded flex items-center justify-center overflow-hidden">
+          {entity.icon ? (
+            <IconDisplay name={entity.icon} className="h-6 w-6 text-primary-700" />
+          ) : (
+            <div className="h-full w-full bg-primary-100 flex items-center justify-center rounded">
+              <span className="text-xs font-medium text-primary-700">
+                {entity.type === 'service' ? 'S' : entity.type === 'api' ? 'A' : (entity.type?.[0]?.toUpperCase() || entity.title?.[0]?.toUpperCase() || entity.identifier?.[0]?.toUpperCase() || '?')}
+              </span>
+            </div>
+          )}
+        </div>
+      </td>
+
+      {/* Dynamic columns */}
+      {visibleColumns.map((column) => {
+        const entityName = entity.name || entity.title || entity.identifier
+        const entityDescription = entity.description || entity.properties?.description || ''
+        const entityTags = entity.tags || entity.properties?.tags || []
+
+        // Check if this is the title/name column
+        const isTitleColumn = column.id === 'name' || column.id === 'title'
+
+        return (
+          <td key={column.id} className="px-4 py-2.5">
+            {isTitleColumn ? (
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-medium text-gray-900">{entityName}</span>
+                  {Array.isArray(entityTags) && entityTags.includes('critical') && (
+                    <span className="px-1 py-0.5 text-[10px] font-medium bg-red-100 text-red-700 rounded">
+                      Critical
                     </span>
-                  </div>
-                </th>
-              ))}
+                  )}
+                </div>
+                <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-1">
+                  {entityDescription}
+                </p>
+              </div>
+            ) : (
+              renderCell(entity, column)
+            )}
+          </td>
+        )
+      })}
 
-              {/* Actions column */}
-              <th className="px-4 py-2 text-right text-[10px] font-medium text-gray-500 uppercase tracking-wider w-20">
-                Actions
-              </th>
-            </tr>
-          </thead>
+      {/* Actions column */}
+      <td className="px-4 py-2.5">
+        <EntityActionsMenu entityId={entity.id} entityName={entity.name || entity.title || entity.identifier || 'Unknown'} />
+      </td>
+    </tr>
+  )
+
+  return (
+    <div className="bg-white rounded-lg border">
+      {/* Table */}
+      <div className="overflow-x-auto overflow-y-visible">
+        <table className="w-full">
+          <TableHeader />
 
           <tbody className="divide-y divide-gray-200">
-            {paginatedEntities.map((entity) => (
-              <tr
-                key={entity.id}
-                className="hover:bg-gray-50 cursor-pointer transition-colors"
-              >
-                {/* Icon column */}
-                <td className="px-4 py-2.5">
-                  <div className="h-6 w-6 rounded bg-primary-100 flex items-center justify-center">
-                    <span className="text-xs font-medium text-primary-700">
-                      {entity.type === 'service' ? 'S' : entity.type === 'api' ? 'A' : entity.type[0].toUpperCase()}
-                    </span>
-                  </div>
-                </td>
-
-                {/* Dynamic columns */}
-                {visibleColumns.map((column) => (
-                  <td key={column.id} className="px-4 py-2.5">
-                    {column.id === 'name' ? (
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-medium text-gray-900">{entity.name}</span>
-                          {entity.tags.includes('critical') && (
-                            <span className="px-1 py-0.5 text-[10px] font-medium bg-red-100 text-red-700 rounded">
-                              Critical
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-1">
-                          {entity.description}
-                        </p>
-                      </div>
-                    ) : (
-                      renderCell(entity, column)
-                    )}
-                  </td>
-                ))}
-
-                {/* Actions column */}
-                <td className="px-4 py-2.5">
-                  <EntityActionsMenu entityId={entity.id} entityName={entity.name} />
-                </td>
-              </tr>
-            ))}
+            {groupBy && groupBy.length > 0 ? (
+              renderGroupedRows(groupedData as any[])
+            ) : (
+              paginatedEntities.map(entity => renderRow(entity))
+            )}
           </tbody>
         </table>
       </div>
@@ -290,11 +465,10 @@ export function EntityTableView({ filters, onColumnConfig }: EntityTableViewProp
                         <button
                           key={pageNum}
                           onClick={() => handlePageChange(pageNum)}
-                          className={`min-w-[28px] px-2 py-1 text-xs rounded border transition-colors ${
-                            currentPage === pageNum
-                              ? 'bg-primary-600 text-white border-primary-600'
-                              : 'border-gray-300 hover:bg-gray-100 text-gray-700'
-                          }`}
+                          className={`min-w-[28px] px-2 py-1 text-xs rounded border transition-colors ${currentPage === pageNum
+                            ? 'bg-primary-600 text-white border-primary-600'
+                            : 'border-gray-300 hover:bg-gray-100 text-gray-700'
+                            }`}
                           aria-label={`Go to page ${pageNum}`}
                           aria-current={currentPage === pageNum ? 'page' : undefined}
                         >

@@ -208,6 +208,18 @@ export const tenantsApi = {
 
         return response.json();
     },
+
+    // Delete tenant
+    async deleteTenant(tenantId: string): Promise<void> {
+        const response = await fetch(`${API_BASE}/tenants/${tenantId}`, {
+            method: 'DELETE',
+            headers: getAuthHeader(),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to delete tenant');
+        }
+    },
 };
 
 export interface AuditLog {

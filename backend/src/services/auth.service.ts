@@ -13,7 +13,7 @@ export class AuthService {
         const payload: JWTPayload = { userId, email };
         return jwt.sign(payload, env.JWT_SECRET, {
             expiresIn: env.JWT_EXPIRES_IN,
-        });
+        } as jwt.SignOptions);
     }
 
     // Verify JWT token

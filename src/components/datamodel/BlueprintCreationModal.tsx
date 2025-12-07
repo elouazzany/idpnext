@@ -3,6 +3,7 @@ import { X, Code } from 'lucide-react';
 import { Blueprint } from '@/types/blueprint';
 import { CodeEditorModal } from './CodeEditorModal';
 import { IconPickerModal } from './IconPickerModal';
+import { IconDisplay } from '../../components/IconDisplay';
 
 interface Props {
     onClose: () => void;
@@ -157,7 +158,7 @@ export const BlueprintCreationModal: React.FC<Props> = ({ onClose, onCreate }) =
                                 onClick={() => setIsIconPickerOpen(true)}
                                 className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
                             >
-                                <span className="text-2xl">{icon}</span>
+                                <IconDisplay name={icon} className="w-8 h-8 text-gray-700" />
                                 <span className="text-sm text-gray-600">Change icon</span>
                             </button>
                         </div>

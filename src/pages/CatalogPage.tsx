@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Search, SlidersHorizontal, LayoutGrid, List, Plus, Download, Copy, Undo, Layers } from 'lucide-react'
 import { EntityTableView } from '@/components/catalog/EntityTableView'
 import { EntityGridView } from '@/components/catalog/EntityGridView'
@@ -7,11 +7,15 @@ import { CatalogFilters } from '@/types/catalog'
 import { FilterModal } from '@/components/catalog/FilterModal'
 import { ColumnManagerModal } from '@/components/catalog/ColumnManagerModal'
 import { ColumnConfigProvider } from '@/contexts/ColumnConfigContext'
+import { useAuth } from '@/contexts/AuthContext'
 
 type ViewMode = 'table' | 'grid'
 
 export function CatalogPage() {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { currentTenant } = useAuth()
+  const tenantIdRef = useRef<string | null>(null)
   const pageName = searchParams.get('name') || 'Service Catalog'
 
   const [viewMode, setViewMode] = useState<ViewMode>('table')
@@ -24,6 +28,19 @@ export function CatalogPage() {
     statuses: [],
     tags: [],
   })
+
+  // Redirect to dashboard when tenant changes
+  useEffect(() => {
+    if (currentTenant?.id) {
+      // Initialize tenant ref on first load
+      if (tenantIdRef.current === null) {
+        tenantIdRef.current = currentTenant.id
+      } else if (tenantIdRef.current !== currentTenant.id) {
+        // Tenant has changed - redirect to dashboard
+        navigate('/dashboard')
+      }
+    }
+  }, [currentTenant, navigate])
 
   return (
     <ColumnConfigProvider>

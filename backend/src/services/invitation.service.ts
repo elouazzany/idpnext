@@ -19,7 +19,7 @@ export class InvitationService {
             },
         });
 
-        if (existingUser?.organizations.length > 0) {
+        if (existingUser?.organizations && existingUser.organizations.length > 0) {
             throw new Error('User is already a member of this organization');
         }
 

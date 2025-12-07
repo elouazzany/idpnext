@@ -1,9 +1,62 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { ColumnConfig, ColumnDefinition } from '@/types/catalog'
+import { Blueprint } from '@/types/blueprint'
 
 const STORAGE_KEY = 'catalog-column-config'
 
-// Default column definitions matching Port.io design
+// Helper function to generate columns from blueprint properties
+function generateColumnsFromBlueprint(blueprint: Blueprint): ColumnDefinition[] {
+  const columns: ColumnDefinition[] = []
+
+  // Always add title/identifier column first
+  columns.push({
+    id: 'title',
+    label: 'Title',
+    type: 'text',
+    accessor: 'title',
+    defaultVisible: true,
+    sortable: true,
+    resizable: false,
+    minWidth: 200,
+    width: 250,
+  })
+
+  // Add columns for each blueprint property
+  if (blueprint.schema?.properties) {
+    Object.entries(blueprint.schema.properties).forEach(([key, prop]) => {
+      // Determine column type based on property type
+      let columnType: ColumnDefinition['type'] = 'text'
+
+      if (prop.type === 'string' && prop.format === 'email') {
+        columnType = 'email'
+      } else if (prop.type === 'string' && prop.format === 'url') {
+        columnType = 'link'
+      } else if (prop.type === 'boolean') {
+        columnType = 'status'
+      } else if (prop.enum && prop.enum.length > 0) {
+        columnType = 'badge'
+      } else if (prop.type === 'array') {
+        columnType = 'tags'
+      }
+
+      columns.push({
+        id: key,
+        label: prop.title || key,
+        type: columnType,
+        accessor: `properties.${key}`,
+        defaultVisible: true,
+        sortable: true,
+        resizable: true,
+        minWidth: 120,
+        width: 150,
+      })
+    })
+  }
+
+  return columns
+}
+
+// Default column definitions matching Port.io design (fallback)
 export const defaultColumns: ColumnDefinition[] = [
   {
     id: 'name',
@@ -140,7 +193,18 @@ export const defaultColumns: ColumnDefinition[] = [
   },
 ]
 
-function getInitialConfig(): ColumnConfig[] {
+function getInitialConfig(columns: ColumnDefinition[], savedColumns?: string[]): ColumnConfig[] {
+  // If there are saved columns, use them to set visibility
+  if (savedColumns && savedColumns.length > 0) {
+    return columns.map((col, index) => ({
+      id: col.id,
+      visible: savedColumns.includes(col.id),
+      order: savedColumns.indexOf(col.id) >= 0 ? savedColumns.indexOf(col.id) : index,
+      width: col.width,
+    }))
+  }
+
+  // Try to load from localStorage as fallback
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
@@ -151,7 +215,7 @@ function getInitialConfig(): ColumnConfig[] {
   }
 
   // Return default configuration
-  return defaultColumns.map((col, index) => ({
+  return columns.map((col, index) => ({
     id: col.id,
     visible: col.defaultVisible,
     order: index,
@@ -159,8 +223,18 @@ function getInitialConfig(): ColumnConfig[] {
   }))
 }
 
-export function useColumnConfig() {
-  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(getInitialConfig)
+export function useColumnConfig(blueprint?: Blueprint, savedColumns?: string[]) {
+  // Generate columns from blueprint or use defaults
+  const allColumnsDefinitions = useMemo(() => {
+    if (blueprint) {
+      return generateColumnsFromBlueprint(blueprint)
+    }
+    return defaultColumns
+  }, [blueprint])
+
+  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() =>
+    getInitialConfig(allColumnsDefinitions, savedColumns)
+  )
 
   // Save to localStorage whenever config changes
   useEffect(() => {
@@ -188,7 +262,7 @@ export function useColumnConfig() {
   }
 
   const resetToDefaults = () => {
-    const defaultConfig = defaultColumns.map((col, index) => ({
+    const defaultConfig = allColumnsDefinitions.map((col, index) => ({
       id: col.id,
       visible: col.defaultVisible,
       order: index,
@@ -202,7 +276,7 @@ export function useColumnConfig() {
     .filter((config) => config.visible)
     .sort((a, b) => a.order - b.order)
     .map((config) => {
-      const definition = defaultColumns.find((col) => col.id === config.id)
+      const definition = allColumnsDefinitions.find((col) => col.id === config.id)
       return definition ? { ...definition, width: config.width } : null
     })
     .filter(Boolean) as ColumnDefinition[]
@@ -210,7 +284,7 @@ export function useColumnConfig() {
   return {
     columnConfig,
     visibleColumns,
-    allColumns: defaultColumns,
+    allColumns: allColumnsDefinitions,
     toggleColumn,
     updateColumnWidth,
     reorderColumns,

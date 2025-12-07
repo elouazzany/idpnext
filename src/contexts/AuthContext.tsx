@@ -15,6 +15,7 @@ interface AuthContextType {
     switchOrganization: (organizationId: string) => Promise<void>;
     switchTenant: (tenantId: string) => void;
     refreshUser: () => Promise<void>;
+    refreshTenants: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -149,6 +150,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     };
 
+    const refreshTenants = async () => {
+        if (!currentOrganization) return;
+
+        try {
+            // Reload tenants for the current organization
+            const tenants = await tenantsApi.getTenants(currentOrganization.id);
+            setAvailableTenants(tenants);
+
+            // Check if current tenant still exists
+            const currentTenantStillExists = tenants.find((t: Tenant) => t.id === currentTenant?.id);
+
+            if (!currentTenantStillExists) {
+                // If current tenant was deleted, switch to default tenant
+                const defaultTenant = tenants.find((t: Tenant) => t.isDefault) || tenants[0];
+                if (defaultTenant) {
+                    setCurrentTenant(defaultTenant);
+                    authStorage.setCurrentTenant(defaultTenant.id);
+                } else {
+                    setCurrentTenant(null);
+                    authStorage.setCurrentTenant('');
+                }
+            }
+        } catch (error) {
+            console.error('Failed to refresh tenants:', error);
+        }
+    };
+
     const value: AuthContextType = {
         user,
         currentOrganization,
@@ -161,6 +189,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         switchOrganization,
         switchTenant,
         refreshUser,
+        refreshTenants,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

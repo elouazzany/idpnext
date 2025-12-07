@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { X, Plus } from 'lucide-react'
 import { EntityType, EntityStatus } from '@/types/catalog'
+import { Blueprint } from '@/types/blueprint'
 
 interface FilterCondition {
   id: string
@@ -14,9 +15,11 @@ interface FilterModalProps {
   isOpen: boolean
   onClose: () => void
   onApply: (conditions: FilterCondition[]) => void
+  blueprint?: Blueprint
 }
 
-const fields = [
+// Default fields as fallback
+const defaultFields = [
   { value: 'name', label: 'Name', type: 'text' },
   { value: 'type', label: 'Type', type: 'select' },
   { value: 'status', label: 'Status', type: 'select' },
@@ -28,10 +31,14 @@ const fields = [
 
 const operators = {
   text: [
-    { value: 'equals', label: 'equals' },
     { value: 'contains', label: 'contains' },
-    { value: 'startsWith', label: 'starts with' },
+    { value: 'equals', label: '=' },
+    { value: 'notEquals', label: '!=' },
+    { value: 'startsWith', label: 'begins with' },
+    { value: 'notStartsWith', label: 'not begins with' },
     { value: 'endsWith', label: 'ends with' },
+    { value: 'notEndsWith', label: 'not ends with' },
+    { value: 'notContains', label: 'does not contain' },
   ],
   select: [
     { value: 'is', label: 'is' },
@@ -49,13 +56,48 @@ const statusOptions: EntityStatus[] = ['healthy', 'degraded', 'down', 'unknown']
 const teamOptions = ['Platform Team', 'Payments Team', 'Data Team', 'Security Team']
 const tagOptions = ['production', 'critical', 'auth', 'payment', 'analytics', 'internal', 'pci-compliant']
 
-export function FilterModal({ isOpen, onClose, onApply }: FilterModalProps) {
+export function FilterModal({ isOpen, onClose, onApply, blueprint }: FilterModalProps) {
+  // Generate fields from blueprint properties
+  const fields = useMemo(() => {
+    if (!blueprint?.schema?.properties) {
+      return defaultFields
+    }
+
+    const blueprintFields = [
+      { value: 'title', label: 'Title', type: 'text' },
+    ]
+
+    Object.entries(blueprint.schema.properties).forEach(([key, prop]) => {
+      let fieldType = 'text'
+
+      if (prop.type === 'string' && prop.format === 'email') {
+        fieldType = 'text'
+      } else if (prop.type === 'string' && prop.format === 'url') {
+        fieldType = 'text'
+      } else if (prop.type === 'boolean') {
+        fieldType = 'select'
+      } else if (prop.enum && prop.enum.length > 0) {
+        fieldType = 'select'
+      } else if (prop.type === 'array') {
+        fieldType = 'multiselect'
+      }
+
+      blueprintFields.push({
+        value: key,
+        label: prop.title || key,
+        type: fieldType,
+      })
+    })
+
+    return blueprintFields
+  }, [blueprint])
+
   const [conditions, setConditions] = useState<FilterCondition[]>([
     {
       id: '1',
       logic: 'And',
-      field: 'type',
-      operator: 'is',
+      field: fields[0]?.value || 'title',
+      operator: 'contains',
       value: '',
     },
   ])
@@ -106,6 +148,12 @@ export function FilterModal({ isOpen, onClose, onApply }: FilterModalProps) {
   }
 
   const getFieldOptions = (fieldValue: string) => {
+    // Check if this is a blueprint property with enum values
+    if (blueprint?.schema?.properties?.[fieldValue]?.enum) {
+      return blueprint.schema.properties[fieldValue].enum as string[]
+    }
+
+    // Fallback to default options
     switch (fieldValue) {
       case 'type':
         return typeOptions

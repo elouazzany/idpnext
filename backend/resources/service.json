@@ -1,0 +1,821 @@
+{
+    "identifier": "service",
+    "title": "Service",
+    "icon": "Box",
+    "ownership": {
+        "type": "Inherited",
+        "path": "githubTeams"
+    },
+    "schema": {
+        "properties": {
+            "readme": {
+                "title": "README",
+                "type": "string",
+                "format": "markdown",
+                "icon": "Book"
+            },
+            "language": {
+                "icon": "Git",
+                "title": "Language",
+                "type": "string",
+                "enum": [
+                    "GO",
+                    "Python",
+                    "Node",
+                    "React",
+                    "php",
+                    "Java"
+                ],
+                "enumColors": {
+                    "GO": "red",
+                    "Python": "green",
+                    "Node": "blue",
+                    "React": "yellow",
+                    "php": "purple",
+                    "Java": "orange"
+                }
+            },
+            "tier": {
+                "icon": "DefaultProperty",
+                "title": "Tier",
+                "description": "Service Tiers indicate the significance or importance of a Service for business operations",
+                "type": "string",
+                "enum": [
+                    "Mission Critical",
+                    "Customer Facing",
+                    "Internal Service",
+                    "Other"
+                ],
+                "enumColors": {
+                    "Mission Critical": "turquoise",
+                    "Customer Facing": "green",
+                    "Internal Service": "darkGray",
+                    "Other": "yellow"
+                }
+            },
+            "type": {
+                "title": "Type",
+                "description": "This service's type",
+                "type": "string",
+                "enum": [
+                    "Backend",
+                    "Frontend",
+                    "Library"
+                ],
+                "enumColors": {
+                    "Backend": "purple",
+                    "Frontend": "pink",
+                    "Library": "green"
+                },
+                "icon": "DefaultProperty"
+            },
+            "lifecycle": {
+                "title": "Lifecycle",
+                "type": "string",
+                "enum": [
+                    "Production",
+                    "Experimental",
+                    "Deprecated"
+                ],
+                "enumColors": {
+                    "Production": "green",
+                    "Experimental": "yellow",
+                    "Deprecated": "red"
+                },
+                "icon": "DefaultProperty"
+            },
+            "is_protected": {
+                "title": "Is branch protected",
+                "type": "boolean",
+                "icon": "DefaultProperty"
+            },
+            "require_code_owner_review": {
+                "title": "Require code owner review",
+                "type": "boolean",
+                "icon": "DefaultProperty"
+            },
+            "locked_in_prod": {
+                "icon": "DefaultProperty",
+                "title": "Locked in Prod",
+                "type": "boolean",
+                "default": false
+            },
+            "last_push": {
+                "icon": "GitPullRequest",
+                "title": "Last push",
+                "description": "Last commit to the main branch",
+                "type": "string",
+                "format": "date-time"
+            },
+            "required_approvals": {
+                "icon": "Lock",
+                "title": "Required approvals",
+                "type": "number",
+                "description": "Number of required approvals for a PR to be merged to main branch"
+            },
+            "locked_reason_prod": {
+                "icon": "DefaultProperty",
+                "title": "Locked Reason Prod",
+                "type": "string"
+            },
+            "locked_reason_test": {
+                "title": "Locked Reason Test",
+                "type": "string",
+                "icon": "DefaultProperty"
+            },
+            "locked_in_test": {
+                "title": "Locked in Test",
+                "type": "boolean",
+                "default": false,
+                "icon": "DefaultProperty"
+            },
+            "runbooks": {
+                "title": "Runbooks",
+                "type": "array",
+                "icon": "Misconfiguration",
+                "items": {
+                    "type": "string",
+                    "format": "url"
+                }
+            },
+            "monitor_dashboards": {
+                "title": "Monitor Dashboards",
+                "type": "array",
+                "items": {
+                    "type": "string",
+                    "format": "url"
+                }
+            },
+            "url": {
+                "icon": "Github",
+                "title": "URL",
+                "format": "url",
+                "type": "string"
+            },
+            "syncStatusinProd": {
+                "type": "string",
+                "title": "Sync Status in Prod",
+                "enum": [
+                    "Synced",
+                    "OutOfSync",
+                    "Unknown"
+                ],
+                "enumColors": {
+                    "Synced": "green",
+                    "OutOfSync": "red",
+                    "Unknown": "lightGray"
+                },
+                "description": "The sync status of the application"
+            },
+            "healthStatusinProd": {
+                "type": "string",
+                "title": "Health Status in Prod",
+                "enum": [
+                    "Healthy",
+                    "Missing",
+                    "Suspended",
+                    "Degraded",
+                    "Progressing",
+                    "Unknown"
+                ],
+                "enumColors": {
+                    "Healthy": "green",
+                    "Missing": "yellow",
+                    "Suspended": "purple",
+                    "Degraded": "red",
+                    "Progressing": "blue",
+                    "Unknown": "lightGray"
+                },
+                "description": "The health status of the application"
+            },
+            "syncStatusinTest": {
+                "type": "string",
+                "title": "Sync Status in Test",
+                "enum": [
+                    "Synced",
+                    "OutOfSync",
+                    "Unknown"
+                ],
+                "enumColors": {
+                    "Synced": "green",
+                    "OutOfSync": "red",
+                    "Unknown": "lightGray"
+                },
+                "description": "The sync status of the application"
+            },
+            "healthStatusinTest": {
+                "type": "string",
+                "title": "Health Status in Test",
+                "enum": [
+                    "Healthy",
+                    "Missing",
+                    "Suspended",
+                    "Degraded",
+                    "Progressing",
+                    "Unknown"
+                ],
+                "enumColors": {
+                    "Healthy": "green",
+                    "Missing": "yellow",
+                    "Suspended": "purple",
+                    "Degraded": "red",
+                    "Progressing": "blue",
+                    "Unknown": "lightGray"
+                },
+                "description": "The health status of the application"
+            },
+            "favorites": {
+                "type": "array",
+                "title": "Favorites",
+                "items": {
+                    "type": "string",
+                    "format": "user"
+                }
+            }
+        },
+        "required": []
+    },
+    "mirrorProperties": {
+        "coverage": {
+            "title": "Coverage",
+            "path": "sonar_qube_project.coverage"
+        },
+        "sonar_qube_vulnerabilities": {
+            "title": "Number Of Vulnerabilities",
+            "path": "sonar_qube_project.numberOfVulnerabilities"
+        },
+        "security_hotspots": {
+            "title": "Number Of HotSpots",
+            "path": "sonar_qube_project.numberOfHotSpots"
+        },
+        "status": {
+            "path": "pager_duty_service.status"
+        },
+        "total_incident_count": {
+            "path": "pager_duty_service.totalIncidentCount"
+        },
+        "mean_time_to_recovery": {
+            "title": "Mean Minutes to Resolve",
+            "path": "pager_duty_service.meanMinutesToResolve"
+        },
+        "number_of_open_critical_issues": {
+            "title": "Number Of Open Critical Issues",
+            "path": "sonar_qube_project.criticalOpenIssues"
+        },
+        "active_incidents": {
+            "title": "Number of Open Incidents",
+            "path": "pager_duty_service.total_open_incident"
+        },
+        "escalation_levels": {
+            "title": "Escalation Levels",
+            "path": "pager_duty_service.escalationLevels"
+        },
+        "on_call": {
+            "title": "On Call",
+            "path": "pager_duty_service.on_call.email"
+        },
+        "last_sonar_analysis_date": {
+            "title": "Last Analysis Date",
+            "path": "sonar_qube_project.lastAnalysisDate"
+        },
+        "sonar_project": {
+            "title": "Sonar Project",
+            "path": "sonar_qube_project.$identifier"
+        },
+        "api_spec": {
+            "path": "provides_api.spec"
+        },
+        "repo_owners": {
+            "title": "Repo Owners",
+            "path": "code_owners.git_hub_teams.$team.product_owners.email"
+        },
+        "last_commiter": {
+            "title": "Last Commiter",
+            "path": "last_contributor.port_user.email"
+        },
+        "incidents_last_month": {
+            "title": "Average Monthly Incidents",
+            "path": "pager_duty_service.open_incident_last_month"
+        },
+        "sonarqube_num_of_codesmells": {
+            "title": "Number of CodeSmells",
+            "path": "sonar_qube_project.numberOfCodeSmells"
+        },
+        "sonarqube_num_of_duplications": {
+            "title": "Number of Duplications",
+            "path": "sonar_qube_project.numberOfDuplications"
+        },
+        "repo_id": {
+            "title": "Repo ID",
+            "path": "repository.$identifier"
+        },
+        "organization": {
+            "title": "Organization",
+            "path": "domain.organization.$title"
+        }
+    },
+    "calculationProperties": {
+        "freshness": {
+            "title": "Freshness",
+            "icon": "Clock",
+            "calculation": "(now / 86400) - (.properties.last_push | capture(\"(?<date>\\\\d{4}-\\\\d{2}-\\\\d{2})\") | .date | strptime(\"%Y-%m-%d\") | mktime / 86400) | floor",
+            "type": "number",
+            "colorized": false,
+            "colors": {}
+        },
+        "slack": {
+            "title": "Slack",
+            "icon": "Slack",
+            "calculation": "\"https://slack.com/\" + .identifier",
+            "type": "string",
+            "format": "url"
+        },
+        "has_grafana_dashboard": {
+            "title": "Has Grafana Dashboard",
+            "icon": "Grafana",
+            "description": "Does this service have a Grafana dashboard?",
+            "calculation": ".properties.monitor_dashboards | any(contains(\"grafana\"))",
+            "type": "boolean"
+        },
+        "has_datadog_dashboard": {
+            "title": "Has Datadog Dashboard",
+            "icon": "Datadog",
+            "description": "Does this service have a Datadog dashboard?",
+            "calculation": ".properties.monitor_dashboards | any(contains(\"datadog\"))",
+            "type": "boolean"
+        },
+        "resource_definitions": {
+            "title": "Resource definitions",
+            "icon": "Cluster",
+            "description": "A link to the service's resource definitions",
+            "calculation": "\"https://kubernetes.io/\" + .identifier + \".yaml\"",
+            "type": "string",
+            "format": "url"
+        },
+        "days_since_last_analysis": {
+            "title": "Days Since Last Analysis",
+            "icon": "sonarqube",
+            "calculation": "(now / 86400) - (.properties.last_sonar_analysis_date | capture(\"(?<date>\\\\d{4}-\\\\d{2}-\\\\d{2})\") | .date | strptime(\"%Y-%m-%d\") | mktime / 86400) | floor",
+            "type": "number"
+        },
+        "total_open_alerts": {
+            "title": "Total open alerts",
+            "icon": "Alert",
+            "calculation": ".properties.dependabot_alert_count + .properties.sonar_qube_vulnerabilities + .properties.open_critical_vulnerabilities + .properties.open_high_vulnerabilities",
+            "type": "number"
+        },
+        "changeFailureRate": {
+            "title": "Monthly Change Failure Rate",
+            "icon": "DefaultProperty",
+            "calculation": ".properties.incidents_last_month as $incidents | .properties.total_deployments_last_month as $deployments |  if $deployments == 0 or $incidents == null then 0 else (if $deployments < $incidents then 100 else $incidents / ($deployments + $incidents) * 100 end) end | floor",
+            "type": "number"
+        },
+        "mean_time_to_resolve_hours": {
+            "title": "Mean Time to Resolve - Hours",
+            "description": "Mean Time to Resolve in Hours",
+            "calculation": "if .properties.mean_time_to_recovery != null then   .properties.mean_time_to_recovery / 60 else   null end",
+            "type": "number"
+        }
+    },
+    "aggregationProperties": {
+        "jira_issue_count": {
+            "title": "Open urgent bugs",
+            "icon": "Jira",
+            "type": "number",
+            "description": "High priority open bug count for a service",
+            "target": "jiraIssue",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "status",
+                        "operator": "!=",
+                        "value": "Done"
+                    },
+                    {
+                        "property": "issueType",
+                        "operator": "=",
+                        "value": "Bug"
+                    },
+                    {
+                        "property": "priority",
+                        "operator": "=",
+                        "value": "High"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "dependabot_alert_count": {
+            "title": "Dependabot alert count",
+            "icon": "Dependabot",
+            "type": "number",
+            "target": "githubDependabotAlert",
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "open_pr_5_days": {
+            "title": "Open PR > 5 Days",
+            "icon": "Github",
+            "type": "number",
+            "target": "githubPullRequest",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "status",
+                        "operator": "=",
+                        "value": "open"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "jira_epic_count": {
+            "title": "Open Jira epic",
+            "icon": "Jira",
+            "type": "number",
+            "description": "Open epics for a service",
+            "target": "jiraIssue",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "status",
+                        "operator": "!=",
+                        "value": "Done"
+                    },
+                    {
+                        "property": "issueType",
+                        "operator": "=",
+                        "value": "Epic"
+                    },
+                    {
+                        "property": "priority",
+                        "operator": "=",
+                        "value": "High"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "jira_story_count": {
+            "title": "Open Jira story",
+            "icon": "Jira",
+            "type": "number",
+            "description": "Open story for a service",
+            "target": "jiraIssue",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "status",
+                        "operator": "!=",
+                        "value": "Done"
+                    },
+                    {
+                        "property": "issueType",
+                        "operator": "=",
+                        "value": "Story"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "pr_without_jira_link": {
+            "title": "PR without Jira Link",
+            "icon": "DefaultProperty",
+            "type": "number",
+            "target": "githubPullRequest",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "issure_url",
+                        "operator": "isEmpty"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "deployments_history": {
+            "title": "Deployments History",
+            "icon": "Argo",
+            "type": "number",
+            "target": "k8s_deployment",
+            "calculationSpec": {
+                "func": "average",
+                "averageOf": "week",
+                "measureTimeBy": "$createdAt",
+                "calculationBy": "entities"
+            }
+        },
+        "number_of_branches": {
+            "title": "Number of branches",
+            "icon": "Github",
+            "type": "number",
+            "target": "branch_protection",
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "cloud_cost": {
+            "title": "Cloud Cost",
+            "icon": "Opencost",
+            "type": "number",
+            "target": "cloudResource",
+            "calculationSpec": {
+                "func": "sum",
+                "property": "cost",
+                "calculationBy": "property"
+            }
+        },
+        "weeklyPrsMerged": {
+            "title": "Weekly PRs Merge",
+            "icon": "DefaultProperty",
+            "type": "number",
+            "target": "githubPullRequest",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "status",
+                        "operator": "=",
+                        "value": "merged"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "average",
+                "averageOf": "week",
+                "measureTimeBy": "mergedAt",
+                "calculationBy": "entities"
+            }
+        },
+        "deployment_frequency": {
+            "title": "Weekly Deployment Frequency",
+            "icon": "Rocket",
+            "type": "number",
+            "target": "deployment",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "deploymentStatus",
+                        "operator": "=",
+                        "value": "Success"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "average",
+                "averageOf": "week",
+                "measureTimeBy": "createdAt",
+                "calculationBy": "entities"
+            }
+        },
+        "lead_time_for_change": {
+            "title": "Lead time for change",
+            "icon": "DefaultProperty",
+            "type": "number",
+            "target": "githubPullRequest",
+            "calculationSpec": {
+                "func": "average",
+                "averageOf": "total",
+                "property": "leadTimeHours",
+                "measureTimeBy": "mergedAt",
+                "calculationBy": "property"
+            }
+        },
+        "open_critical_vulnerabilities": {
+            "title": "Open Critical Vulnerabilities",
+            "icon": "Snyk",
+            "type": "number",
+            "target": "snykTarget",
+            "calculationSpec": {
+                "func": "max",
+                "property": "criticalOpenVulnerabilities",
+                "calculationBy": "property"
+            }
+        },
+        "open_high_vulnerabilities": {
+            "title": "Open High Vulnerabilities",
+            "icon": "Snyk",
+            "type": "number",
+            "target": "snykTarget",
+            "calculationSpec": {
+                "func": "max",
+                "property": "highOpenVulnerabilities",
+                "calculationBy": "property"
+            }
+        },
+        "total_deployments_last_month": {
+            "title": "Total Deployments Last Month",
+            "icon": "DefaultProperty",
+            "type": "number",
+            "target": "deployment",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "deploymentStatus",
+                        "operator": "=",
+                        "value": "Success"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "mergedPrs": {
+            "title": "Merged PRs",
+            "icon": "Github",
+            "type": "number",
+            "target": "githubPullRequest",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "status",
+                        "operator": "=",
+                        "value": "merged"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "averagePrDuration": {
+            "title": "Average PR Duration Weekly",
+            "icon": "GitPullRequest",
+            "type": "number",
+            "target": "githubPullRequest",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "mergedAt",
+                        "operator": "isNotEmpty"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "average",
+                "averageOf": "total",
+                "property": "leadTimeHours",
+                "measureTimeBy": "$createdAt",
+                "calculationBy": "property"
+            }
+        },
+        "openPrs": {
+            "title": "Open PRs",
+            "icon": "GitPullRequest",
+            "type": "number",
+            "target": "githubPullRequest",
+            "query": {
+                "combinator": "and",
+                "rules": [
+                    {
+                        "property": "status",
+                        "operator": "=",
+                        "value": "open"
+                    }
+                ]
+            },
+            "calculationSpec": {
+                "func": "count",
+                "calculationBy": "entities"
+            }
+        },
+        "averageCommitsPerPr": {
+            "title": "Average Commits per PR",
+            "icon": "GitPullRequest",
+            "type": "number",
+            "target": "githubPullRequest",
+            "calculationSpec": {
+                "func": "average",
+                "averageOf": "total",
+                "property": "commits",
+                "measureTimeBy": "createdAt",
+                "calculationBy": "property"
+            }
+        },
+        "averagePrLinesOfCode": {
+            "title": "Average PR Lines of Code",
+            "icon": "DefaultProperty",
+            "type": "number",
+            "target": "githubPullRequest",
+            "calculationSpec": {
+                "func": "average",
+                "averageOf": "total",
+                "property": "totalLocChanged",
+                "measureTimeBy": "createdAt",
+                "calculationBy": "property"
+            }
+        }
+    },
+    "relations": {
+        "consumes_api": {
+            "title": "Consumes API",
+            "target": "api",
+            "required": false,
+            "many": true
+        },
+        "ecr_repo": {
+            "title": "ECR Repo",
+            "target": "ecrRepository",
+            "required": false,
+            "many": false
+        },
+        "dependencies": {
+            "title": "Dependencies ",
+            "target": "dependency",
+            "required": false,
+            "many": true
+        },
+        "code_owners": {
+            "title": "Code Owners",
+            "target": "github_user",
+            "required": false,
+            "many": true
+        },
+        "provides_api": {
+            "title": "Provides API",
+            "target": "api",
+            "required": false,
+            "many": false
+        },
+        "last_contributor": {
+            "title": "Last contributor",
+            "target": "github_user",
+            "required": false,
+            "many": false
+        },
+        "snyk_target": {
+            "title": "Snyk Target",
+            "target": "snykTarget",
+            "required": false,
+            "many": false
+        },
+        "sonar_qube_project": {
+            "title": "Sonar Project",
+            "target": "sonarQubeProject",
+            "required": false,
+            "many": false
+        },
+        "new_relic_service": {
+            "title": "NewRelic Service",
+            "target": "newRelicService",
+            "required": false,
+            "many": false
+        },
+        "domain": {
+            "title": "Domain",
+            "description": "The domain this service belongs to",
+            "target": "domain",
+            "required": false,
+            "many": false
+        },
+        "githubTeams": {
+            "title": "GitHub teams",
+            "target": "githubTeam",
+            "required": false,
+            "many": true
+        },
+        "pager_duty_service": {
+            "title": "PagerDuty Service",
+            "description": "Corresponding Pagerduty Service",
+            "target": "pagerdutyService",
+            "required": false,
+            "many": false
+        },
+        "repository": {
+            "title": "Repository",
+            "target": "githubRepository",
+            "required": false,
+            "many": false
+        }
+    }
+}

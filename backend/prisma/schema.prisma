@@ -148,7 +148,8 @@ model Invitation {
 
 // Blueprint model - Port.io compatible structure
 model Blueprint {
-  identifier            String   @id
+  id                    String   @id @default(cuid())
+  identifier            String
   title                 String
   icon                  String?
   description           String?
@@ -179,6 +180,11 @@ model Blueprint {
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   tenant         Tenant?       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   
+  // Ensure identifier is unique per tenant/organization scope
+  // Note: NULL values in unique indexes are treated as distinct in SQL standard, 
+  // but Prisma/DB specific behavior varies. 
+  // For now, assuming standard uniqueness scoping.
+  @@unique([identifier, organizationId, tenantId])
   @@index([identifier])
   @@index([organizationId])
   @@index([tenantId])

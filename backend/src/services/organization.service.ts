@@ -1,4 +1,5 @@
 import { prisma } from '../config/db.js';
+import { blueprintService } from './blueprint.service.js';
 
 export class OrganizationService {
     // Get organization by ID
@@ -71,6 +72,11 @@ export class OrganizationService {
                     role: 'owner',
                 },
             });
+
+            // Seed default blueprints for the new tenant
+            console.log(`[ORG SERVICE] Calling blueprint seeding for organization ${organization.id}, tenant ${organization.tenants[0].id}`);
+            await blueprintService.seedDefaults(organization.id, organization.tenants[0].id);
+            console.log(`[ORG SERVICE] Blueprint seeding completed`);
         }
 
         return organization;

@@ -1,0 +1,227 @@
+{
+    "identifier": "_user",
+    "description": "This blueprint is synced with active or invited Port users",
+    "title": "User",
+    "icon": "User",
+    "ownership": {
+        "type": "Direct",
+        "title": "Teams"
+    },
+    "schema": {
+        "properties": {
+            "port_type": {
+                "icon": "DefaultProperty",
+                "title": "Port Type",
+                "type": "string",
+                "default": "Standard",
+                "enum": [
+                    "Standard",
+                    "Service Account"
+                ],
+                "enumColors": {
+                    "Service Account": "pink",
+                    "Standard": "blue"
+                }
+            },
+            "port_role": {
+                "icon": "DefaultProperty",
+                "title": "Port Role",
+                "type": "string",
+                "default": "Member",
+                "enum": [
+                    "Admin",
+                    "Moderator",
+                    "Member"
+                ],
+                "enumColors": {
+                    "Admin": "turquoise",
+                    "Moderator": "purple",
+                    "Member": "lightGray"
+                }
+            },
+            "moderated_blueprints": {
+                "type": "array",
+                "title": "Moderated Blueprints",
+                "items": {
+                    "type": "string",
+                    "format": "blueprints"
+                }
+            },
+            "status": {
+                "type": "string",
+                "title": "Status",
+                "default": "Disabled",
+                "enum": [
+                    "Invited",
+                    "Active",
+                    "Disabled"
+                ],
+                "enumColors": {
+                    "Invited": "lightGray",
+                    "Active": "green",
+                    "Disabled": "red"
+                }
+            },
+            "function": {
+                "type": "string",
+                "title": "Function",
+                "enum": [
+                    "Engineer",
+                    "Product Manager",
+                    "Customer Success Manager"
+                ],
+                "enumColors": {
+                    "Engineer": "blue",
+                    "Product Manager": "pink",
+                    "Customer Success Manager": "bronze"
+                }
+            },
+            "skills": {
+                "icon": "DefaultProperty",
+                "title": "Dev Skills",
+                "type": "array",
+                "items": {
+                    "enum": [
+                        "UX Design",
+                        "React",
+                        "HTML5",
+                        "Front End",
+                        "Python",
+                        "Android",
+                        "Swift",
+                        "SEO",
+                        "k8s",
+                        "Security",
+                        "Java",
+                        "Deployment",
+                        "Cloud Computing",
+                        "Redshift",
+                        "Backend",
+                        "SQL",
+                        "API",
+                        "Integrations",
+                        "Node.js",
+                        "Docker",
+                        "GraphQL",
+                        "TypeScript",
+                        "Kotlin",
+                        "AWS",
+                        "Azure",
+                        "GCP",
+                        "Machine Learning",
+                        "Data Science",
+                        "DevOps",
+                        "CI/CD",
+                        "Microservices",
+                        "Blockchain",
+                        "Go",
+                        "Rust",
+                        "C++",
+                        "C#",
+                        "PHP",
+                        "Ruby",
+                        "Django",
+                        "Flask",
+                        "Laravel",
+                        "Spring",
+                        "Hibernate",
+                        "Spark",
+                        "Hadoop",
+                        "Kafka",
+                        "RabbitMQ",
+                        "TensorFlow",
+                        "Agile",
+                        "Scrum",
+                        "Roadmapping",
+                        "Product Strategy",
+                        "User Research",
+                        "Customer Journey Mapping",
+                        "Customer Feedback",
+                        "Onboarding",
+                        "Account Management",
+                        "Customer Retention",
+                        "Customer Support",
+                        "Churn Analysis"
+                    ],
+                    "enumColors": {
+                        "UX Design": "green",
+                        "React": "blue",
+                        "HTML5": "turquoise",
+                        "Front End": "orange",
+                        "Python": "purple",
+                        "Android": "pink",
+                        "Swift": "yellow",
+                        "SEO": "green",
+                        "k8s": "red",
+                        "Security": "darkGray",
+                        "Java": "lightGray",
+                        "Deployment": "bronze",
+                        "Cloud Computing": "blue",
+                        "Redshift": "turquoise",
+                        "Backend": "orange",
+                        "SQL": "purple",
+                        "API": "pink",
+                        "Integrations": "yellow",
+                        "Node.js": "red",
+                        "Docker": "darkGray",
+                        "GraphQL": "lightGray",
+                        "TypeScript": "bronze",
+                        "Kotlin": "blue",
+                        "AWS": "turquoise",
+                        "Azure": "orange",
+                        "GCP": "purple",
+                        "Machine Learning": "pink",
+                        "Data Science": "yellow",
+                        "DevOps": "green",
+                        "CI/CD": "red",
+                        "Microservices": "darkGray",
+                        "Blockchain": "lightGray",
+                        "Go": "bronze",
+                        "Rust": "blue",
+                        "C++": "turquoise",
+                        "C#": "orange",
+                        "PHP": "purple",
+                        "Ruby": "pink",
+                        "Django": "yellow",
+                        "Flask": "green",
+                        "Laravel": "red",
+                        "Spring": "darkGray",
+                        "Hibernate": "lightGray",
+                        "Spark": "bronze",
+                        "Hadoop": "blue",
+                        "Kafka": "turquoise",
+                        "RabbitMQ": "orange",
+                        "TensorFlow": "purple",
+                        "Agile": "lightGray",
+                        "Scrum": "bronze",
+                        "Roadmapping": "blue",
+                        "Product Strategy": "turquoise",
+                        "User Research": "orange",
+                        "Customer Journey Mapping": "purple",
+                        "Customer Feedback": "pink",
+                        "Onboarding": "yellow",
+                        "Account Management": "green",
+                        "Customer Retention": "red",
+                        "Customer Support": "darkGray",
+                        "Churn Analysis": "lightGray"
+                    },
+                    "type": "string"
+                }
+            },
+            "email": {
+                "type": "string",
+                "title": "Email",
+                "format": "user"
+            }
+        },
+        "required": [
+            "port_role",
+            "status",
+            "port_type"
+        ]
+    },
+    "mirrorProperties": {},
+    "calculationProperties": {},
+    "aggregationProperties": {},
+    "relations": {}
+}

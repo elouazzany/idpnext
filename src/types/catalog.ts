@@ -15,7 +15,11 @@ export interface Entity {
   team: string
   status: EntityStatus
   tags: string[]
+  icon?: string
   // New fields for Port.io-style catalog
+  title?: string
+  identifier?: string
+  properties?: Record<string, any>
   tier?: EntityTier
   lifecycle?: EntityLifecycle
   onCall?: string  // Email address

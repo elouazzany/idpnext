@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { entityController } from '../controllers/entity.controller.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requireOrganizationContext } from '../middleware/tenant-context.js';
 
 const router = Router();
 
-// Apply authentication middleware to all routes
+// Apply authentication and tenant context middleware to all routes
 router.use(requireAuth);
+router.use(requireOrganizationContext);
 
 // Entity routes for specific blueprint
 router.get('/blueprints/:blueprint_identifier/entities', (req, res) =>

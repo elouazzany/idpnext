@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { tenantsApi } from '@/services/api';
 import { Tenant } from '@/types/auth';
-import { Plus, Search, Building2, MoreHorizontal, Loader2 } from 'lucide-react';
-import { clsx } from 'clsx';
+import { Plus, Search, Building2, MoreHorizontal, Loader2, Trash2 } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 export function TenantsPage() {
-    const { currentOrganization } = useAuth();
+    const { currentOrganization, refreshTenants } = useAuth();
     const [tenants, setTenants] = useState<Tenant[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
@@ -18,6 +18,11 @@ export function TenantsPage() {
     const [newTenantName, setNewTenantName] = useState('');
     const [newTenantSlug, setNewTenantSlug] = useState('');
     const [newTenantDescription, setNewTenantDescription] = useState('');
+
+    // Delete Tenant State
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         if (currentOrganization) {
@@ -55,12 +60,44 @@ export function TenantsPage() {
             setNewTenantSlug('');
             setNewTenantDescription('');
             setIsCreateModalOpen(false);
-            loadTenants();
+
+            // Refresh both the local list and the global tenant selector
+            await Promise.all([
+                loadTenants(),
+                refreshTenants()
+            ]);
         } catch (error) {
             console.error('Failed to create tenant:', error);
         } finally {
             setIsCreating(false);
         }
+    };
+
+    const handleDeleteTenant = async () => {
+        if (!tenantToDelete) return;
+
+        try {
+            setIsDeleting(true);
+            await tenantsApi.deleteTenant(tenantToDelete.id);
+            setIsDeleteModalOpen(false);
+            setTenantToDelete(null);
+
+            // Refresh both the local list and the global tenant selector
+            await Promise.all([
+                loadTenants(),
+                refreshTenants()
+            ]);
+        } catch (error) {
+            console.error('Failed to delete tenant:', error);
+            alert('Failed to delete tenant. The default tenant cannot be deleted.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const openDeleteModal = (tenant: Tenant) => {
+        setTenantToDelete(tenant);
+        setIsDeleteModalOpen(true);
     };
 
     const filteredTenants = tenants.filter(tenant =>
@@ -181,9 +218,26 @@ export function TenantsPage() {
                                     <div className="p-2 bg-blue-50 rounded-lg">
                                         <Building2 className="h-6 w-6 text-blue-600" />
                                     </div>
-                                    <button className="text-gray-400 hover:text-gray-600">
-                                        <MoreHorizontal className="h-5 w-5" />
-                                    </button>
+                                    {!tenant.isDefault && (
+                                        <DropdownMenu.Root>
+                                            <DropdownMenu.Trigger asChild>
+                                                <button className="text-gray-400 hover:text-gray-600">
+                                                    <MoreHorizontal className="h-5 w-5" />
+                                                </button>
+                                            </DropdownMenu.Trigger>
+                                            <DropdownMenu.Portal>
+                                                <DropdownMenu.Content className="min-w-[160px] bg-white rounded-md shadow-lg border p-1 z-50">
+                                                    <DropdownMenu.Item
+                                                        className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded cursor-pointer outline-none"
+                                                        onSelect={() => openDeleteModal(tenant)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                        Delete Tenant
+                                                    </DropdownMenu.Item>
+                                                </DropdownMenu.Content>
+                                            </DropdownMenu.Portal>
+                                        </DropdownMenu.Root>
+                                    )}
                                 </div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-1">{tenant.name}</h3>
                                 <code className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 font-mono">{tenant.slug}</code>
@@ -198,6 +252,38 @@ export function TenantsPage() {
                     </div>
                 )}
             </div>
+
+            {/* Delete Confirmation Modal */}
+            <Dialog.Root open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+                <Dialog.Portal>
+                    <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
+                    <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-xl p-6 w-full max-w-md z-50">
+                        <Dialog.Title className="text-lg font-semibold mb-2 text-gray-900">Delete Tenant</Dialog.Title>
+                        <Dialog.Description className="text-sm text-gray-600 mb-4">
+                            Are you sure you want to delete <strong>{tenantToDelete?.name}</strong>? This action cannot be undone and will delete all associated data including blueprints and entities.
+                        </Dialog.Description>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <Dialog.Close asChild>
+                                <button
+                                    type="button"
+                                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                                    disabled={isDeleting}
+                                >
+                                    Cancel
+                                </button>
+                            </Dialog.Close>
+                            <button
+                                onClick={handleDeleteTenant}
+                                disabled={isDeleting}
+                                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isDeleting && <Loader2 className="h-4 w-4 animate-spin" />}
+                                Delete
+                            </button>
+                        </div>
+                    </Dialog.Content>
+                </Dialog.Portal>
+            </Dialog.Root>
         </div>
     );
 }

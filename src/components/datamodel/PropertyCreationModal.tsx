@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronDown, Code } from 'lucide-react';
 import { IconPickerModal } from './IconPickerModal';
-import { BrandIcon } from './BrandIcon';
+import { IconDisplay } from '../../components/IconDisplay';
 import { CodeEditorModal } from './CodeEditorModal';
 
 interface Props {
@@ -310,11 +310,13 @@ export const PropertyCreationModal: React.FC<Props> = ({ property, onClose, onCr
             propertyData.items = {
                 type: arrayType
             };
+            delete propertyData.format;
         }
 
         // Enum-specific fields
         if (type === 'enum') {
             // Build enumColors object mapping option values to color names
+            delete propertyData.format;
             const enumColorsObj: Record<string, string> = {};
             enumOptions.forEach((opt, index) => {
                 if (opt) {
@@ -335,7 +337,6 @@ export const PropertyCreationModal: React.FC<Props> = ({ property, onClose, onCr
             } else {
                 // List: type=array with enum and enumColors in items
                 propertyData.type = 'array';
-                delete propertyData.format; // Removed format field for Enum
                 propertyData.items = {
                     type: enumType,
                     enum: enumOptions.filter(opt => opt), // Remove empty options
@@ -495,14 +496,8 @@ export const PropertyCreationModal: React.FC<Props> = ({ property, onClose, onCr
                         >
                             {icon ? (
                                 <>
-                                    {icon.match(/^[A-Z]/) ? (
-                                        <>
-                                            <BrandIcon name={icon} className="w-5 h-5" />
-                                            <span className="text-sm text-gray-600">{icon}</span>
-                                        </>
-                                    ) : (
-                                        <span className="text-2xl">{icon}</span>
-                                    )}
+                                    <IconDisplay name={icon} className="w-5 h-5" />
+                                    <span className="text-sm text-gray-600 truncate">{icon}</span>
                                 </>
                             ) : (
                                 <span className="text-sm text-gray-400">Click to select an icon</span>
