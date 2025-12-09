@@ -5,6 +5,7 @@ export interface Entity {
     identifier: string;
     blueprintId: string;
     title?: string;
+    description?: string;
     properties: Record<string, any>;
     relations: Record<string, any>;
     team?: string;
@@ -36,6 +37,7 @@ export interface EntityHistory {
 export interface CreateEntityData {
     identifier: string;
     title?: string;
+    description?: string;
     properties?: Record<string, any>;
     relations?: Record<string, any>;
     team?: string;
@@ -44,6 +46,7 @@ export interface CreateEntityData {
 
 export interface UpdateEntityData {
     title?: string;
+    description?: string;
     properties?: Record<string, any>;
     relations?: Record<string, any>;
     team?: string;

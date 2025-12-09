@@ -1,4 +1,5 @@
 import { CatalogFilters, Entity, ColumnDefinition } from '@/types/catalog'
+import { Entity as ServiceEntity } from '@/types/entity'
 import { formatDistanceToNow } from 'date-fns'
 import { mockEntities } from '@/data/mockEntities'
 import { useColumnConfigContext } from '@/contexts/ColumnConfigContext'
@@ -15,6 +16,9 @@ interface EntityTableViewProps {
   filters: CatalogFilters
   onColumnConfig?: () => void
   entities?: Entity[]  // Optional: if provided, use these instead of mockEntities
+  onDuplicateEntity?: (entity: Entity | ServiceEntity) => void
+  onEditEntity?: (entity: Entity | ServiceEntity) => void
+  onDeleteEntity?: (entity: Entity | ServiceEntity) => void
 }
 
 // Helper to get nested property value
@@ -27,7 +31,7 @@ function getNestedValue(obj: any, path: string): any {
   return value
 }
 
-export function EntityTableView({ filters, onColumnConfig, entities, groupBy = [] }: EntityTableViewProps & { groupBy?: string[] }) {
+export function EntityTableView({ filters, onColumnConfig, entities, groupBy = [], onDuplicateEntity, onEditEntity, onDeleteEntity }: EntityTableViewProps & { groupBy?: string[] }) {
   const { visibleColumns } = useColumnConfigContext()
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
@@ -368,7 +372,13 @@ export function EntityTableView({ filters, onColumnConfig, entities, groupBy = [
 
       {/* Actions column */}
       <td className="px-4 py-2.5">
-        <EntityActionsMenu entityId={entity.id} entityName={entity.name || entity.title || entity.identifier || 'Unknown'} />
+        <EntityActionsMenu
+          entityId={entity.id}
+          entityName={entity.name || entity.title || entity.identifier || 'Unknown'}
+          onDuplicate={() => onDuplicateEntity?.(entity)}
+          onEdit={() => onEditEntity?.(entity)}
+          onDelete={() => onDeleteEntity?.(entity)}
+        />
       </td>
     </tr>
   )

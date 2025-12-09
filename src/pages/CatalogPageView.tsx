@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Search, SlidersHorizontal, List, Plus, Download, Copy, Undo, Layers, Loader2, AlertCircle, Save, FileText, FileJson } from 'lucide-react'
+import { Search, SlidersHorizontal, List, Plus, Download, Copy, Undo, Layers, Loader2, AlertCircle, Save, FileText, FileJson, X } from 'lucide-react'
 import { EntityTableView } from '@/components/catalog/EntityTableView'
 import catalogPageService from '../services/catalogPage.service'
 import { entityService } from '../services/entity.service'
@@ -13,6 +13,7 @@ import { FilterModal } from '../components/catalog/FilterModal'
 import { ColumnManagerModal } from '../components/catalog/ColumnManagerModal'
 import { ColumnConfigProvider, useColumnConfigContext } from '../contexts/ColumnConfigContext'
 import { EntityCreationModal } from '../components/catalog/EntityCreationModal'
+import { EntityEditModal } from '../components/catalog/EntityEditModal'
 import { IconDisplay } from '../components/IconDisplay'
 import { GroupByMenu } from '../components/catalog/GroupByMenu'
 import { useAuth } from '../contexts/AuthContext'
@@ -54,6 +55,10 @@ function CatalogPageContent({
   const [showFilterModal, setShowFilterModal] = useState(false)
   const [showColumnConfig, setShowColumnConfig] = useState(false)
   const [showEntityModal, setShowEntityModal] = useState(false)
+  const [entityToDuplicate, setEntityToDuplicate] = useState<Entity | null>(null)
+  const [entityToEdit, setEntityToEdit] = useState<Entity | null>(null)
+  const [entityToDelete, setEntityToDelete] = useState<Entity | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [groupBy, setGroupBy] = useState<string[]>([])
   const [showSaveMenu, setShowSaveMenu] = useState(false)
@@ -282,6 +287,35 @@ function CatalogPageContent({
     }
   }
 
+  const handleDuplicateEntity = (entity: Entity | any) => {
+    setEntityToDuplicate(entity)
+  }
+
+  const handleEditEntity = (entity: Entity | any) => {
+    setEntityToEdit(entity)
+  }
+
+  const handleDeleteEntity = (entity: Entity | any) => {
+    setEntityToDelete(entity)
+  }
+
+  const confirmDeleteEntity = async () => {
+    if (!entityToDelete || !blueprint) return
+
+    setIsDeleting(true)
+    try {
+      await entityService.delete(blueprint.identifier, entityToDelete.identifier)
+      setEntityToDelete(null)
+      onEntityCreated() // Refresh the entity list
+      console.log('Entity deleted successfully')
+    } catch (err: any) {
+      console.error('Failed to delete entity:', err)
+      alert('Failed to delete entity: ' + (err.message || 'Unknown error'))
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <>
       {/* Header */}
@@ -451,7 +485,14 @@ function CatalogPageContent({
       <div className="flex-1 overflow-hidden">
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
-          <EntityTableView filters={filters} entities={entities as any} groupBy={groupBy} />
+          <EntityTableView
+            filters={filters}
+            entities={entities as any}
+            groupBy={groupBy}
+            onDuplicateEntity={handleDuplicateEntity}
+            onEditEntity={handleEditEntity}
+            onDeleteEntity={handleDeleteEntity}
+          />
         </div>
       </div>
 
@@ -513,6 +554,109 @@ function CatalogPageContent({
             onEntityCreated()
           }}
         />
+      )}
+
+      {/* Entity Duplicate Modal */}
+      {entityToDuplicate && blueprint && (
+        <EntityCreationModal
+          blueprint={blueprint}
+          initialEntity={entityToDuplicate as any}
+          isDuplicate={true}
+          onClose={() => setEntityToDuplicate(null)}
+          onSuccess={() => {
+            setEntityToDuplicate(null)
+            onEntityCreated()
+          }}
+        />
+      )}
+
+      {/* Entity Edit Modal */}
+      {entityToEdit && blueprint && (
+        <EntityEditModal
+          blueprint={blueprint}
+          entity={entityToEdit as any}
+          onClose={() => setEntityToEdit(null)}
+          onSuccess={() => {
+            setEntityToEdit(null)
+            onEntityCreated()
+          }}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {entityToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-lg w-full shadow-xl">
+            {/* Header */}
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🗑️</span>
+                <h2 className="text-base font-semibold text-gray-900">
+                  Delete {blueprint?.title}?
+                </h2>
+              </div>
+              <button
+                onClick={() => setEntityToDelete(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-4 space-y-4">
+              {/* Entity Info */}
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <IconDisplay
+                  name={entityToDelete.icon || blueprint?.icon || '📦'}
+                  className="w-5 h-5 text-blue-600"
+                />
+                <span>{entityToDelete.title || entityToDelete.identifier}</span>
+              </div>
+
+              {/* Related Entities Info */}
+              {entityToDelete.relations && (
+                <div className="text-sm text-gray-700">
+                  This entity has the following{' '}
+                  <button className="text-blue-600 hover:underline">related entities</button>.
+                </div>
+              )}
+
+              {/* Warning */}
+              <div className="flex gap-3 p-3 bg-red-50 rounded-md border border-red-100">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-gray-700">
+                  You will not be able to recover the data
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setEntityToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteEntity}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Save as New Page Modal */}

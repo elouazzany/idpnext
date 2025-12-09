@@ -3,49 +3,34 @@ import { X, Info, ChevronDown } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import { Blueprint } from '../../types/blueprint';
 import { entityService } from '../../services/entity.service';
-import { CreateEntityData, Entity } from '../../types/entity';
+import { UpdateEntityData, Entity } from '../../types/entity';
 import { IconPickerModal } from '../datamodel/IconPickerModal';
 import { IconDisplay } from '../IconDisplay';
 
-interface EntityCreationModalProps {
+interface EntityEditModalProps {
   blueprint: Blueprint;
+  entity: Entity;
   onClose: () => void;
   onSuccess: () => void;
-  initialEntity?: Entity; // Optional entity to duplicate
-  isDuplicate?: boolean; // Flag to indicate duplicate mode
 }
 
-export function EntityCreationModal({ blueprint, onClose, onSuccess, initialEntity, isDuplicate = false }: EntityCreationModalProps) {
-  const [identifier, setIdentifier] = useState(initialEntity?.identifier || '');
-  const [title, setTitle] = useState(initialEntity?.title || '');
-  const [description, setDescription] = useState(initialEntity?.description || '');
-  const [icon, setIcon] = useState(initialEntity?.icon || blueprint.icon || '🔧');
-  const [properties, setProperties] = useState<Record<string, any>>(initialEntity?.properties || {});
+export function EntityEditModal({ blueprint, entity, onClose, onSuccess }: EntityEditModalProps) {
+  const [title, setTitle] = useState(entity.title || '');
+  const [description, setDescription] = useState(entity.description || '');
+  const [icon, setIcon] = useState(entity.icon || blueprint.icon || '🔧');
+  const [properties, setProperties] = useState<Record<string, any>>(entity.properties || {});
   const [relationEntities, setRelationEntities] = useState<Record<string, Entity[]>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [autoGenerateId, setAutoGenerateId] = useState(!initialEntity || isDuplicate);
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [isJsonMode, setIsJsonMode] = useState(false);
   const [jsonData, setJsonData] = useState('');
   const [jsonError, setJsonError] = useState('');
 
-  // Auto-generate identifier from title
-  useEffect(() => {
-    if (autoGenerateId && title) {
-      const generated = title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-      setIdentifier(generated);
-    }
-  }, [title, autoGenerateId]);
-
   // Sync form data to JSON when switching to JSON mode
   useEffect(() => {
     if (isJsonMode) {
       const entityObject = {
-        identifier: identifier,
         title: title || undefined,
         description: description || undefined,
         icon: icon || undefined,
@@ -64,7 +49,6 @@ export function EntityCreationModal({ blueprint, onClose, onSuccess, initialEnti
       // Switching to form mode - parse JSON to form
       try {
         const parsed = JSON.parse(jsonData);
-        setIdentifier(parsed.identifier || '');
         setTitle(parsed.title || '');
         setDescription(parsed.description || '');
         setIcon(parsed.icon || blueprint.icon || '🔧');
@@ -108,25 +92,18 @@ export function EntityCreationModal({ blueprint, onClose, onSuccess, initialEnti
     setJsonError('');
 
     try {
-      let entityData: CreateEntityData;
+      let entityData: UpdateEntityData;
 
       if (isJsonMode) {
         // Parse JSON data
         try {
           const parsed = JSON.parse(jsonData);
           entityData = {
-            identifier: parsed.identifier?.trim(),
             title: parsed.title?.trim() || undefined,
             description: parsed.description?.trim() || undefined,
             icon: parsed.icon || undefined,
             properties: parsed.properties || undefined,
           };
-
-          if (!entityData.identifier) {
-            setJsonError('Identifier is required');
-            setLoading(false);
-            return;
-          }
         } catch (err) {
           setJsonError('Invalid JSON format');
           setLoading(false);
@@ -134,14 +111,7 @@ export function EntityCreationModal({ blueprint, onClose, onSuccess, initialEnti
         }
       } else {
         // Use form data
-        if (!identifier.trim()) {
-          setError('Identifier is required');
-          setLoading(false);
-          return;
-        }
-
         entityData = {
-          identifier: identifier.trim(),
           title: title.trim() || undefined,
           description: description.trim() || undefined,
           icon: icon || undefined,
@@ -149,14 +119,14 @@ export function EntityCreationModal({ blueprint, onClose, onSuccess, initialEnti
         };
       }
 
-      await entityService.create(blueprint.identifier, entityData);
+      await entityService.update(blueprint.identifier, entity.identifier, entityData);
       onSuccess();
     } catch (err: any) {
-      console.error('Failed to create entity:', err);
+      console.error('Failed to update entity:', err);
       if (isJsonMode) {
-        setJsonError(err.message || 'Failed to create entity');
+        setJsonError(err.message || 'Failed to update entity');
       } else {
-        setError(err.message || 'Failed to create entity');
+        setError(err.message || 'Failed to update entity');
       }
     } finally {
       setLoading(false);
@@ -313,7 +283,7 @@ export function EntityCreationModal({ blueprint, onClose, onSuccess, initialEnti
           <div className="flex items-center gap-2">
             {blueprint.icon && <IconDisplay name={blueprint.icon} className="w-6 h-6 text-gray-700" />}
             <h2 className="text-base font-semibold text-gray-900">
-              {isDuplicate ? `Duplicate ${blueprint.title}` : `New ${blueprint.title}`}
+              Edit {blueprint.title}
             </h2>
           </div>
           <div className="flex items-center gap-2">
@@ -377,7 +347,7 @@ export function EntityCreationModal({ blueprint, onClose, onSuccess, initialEnti
                   />
                 </div>
                 <p className="mt-1 text-xs text-gray-500">
-                  Edit the entity data in JSON format. Required fields: identifier
+                  Edit the entity data in JSON format
                 </p>
               </div>
             ) : (
@@ -399,28 +369,14 @@ export function EntityCreationModal({ blueprint, onClose, onSuccess, initialEnti
               />
             </div>
 
-            {/* Identifier */}
+            {/* Identifier (Read-only) */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                  Identifier
-                  <Info className="h-3.5 w-3.5 text-gray-400" />
-                </label>
-                <label className="flex items-center gap-2 text-xs text-gray-600">
-                  <span>Autogenerate</span>
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      checked={autoGenerateId}
-                      onChange={(e) => setAutoGenerateId(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                  </div>
-                </label>
-              </div>
-              <div className="bg-white px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-500">
-                {identifier || 'auto-generated-id'}
+              <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1.5">
+                Identifier
+                <Info className="h-3.5 w-3.5 text-gray-400" />
+              </label>
+              <div className="bg-gray-100 px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-500">
+                {entity.identifier}
               </div>
             </div>
 
@@ -494,7 +450,7 @@ export function EntityCreationModal({ blueprint, onClose, onSuccess, initialEnti
               disabled={loading}
               className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? (isDuplicate ? 'Duplicating...' : 'Creating...') : (isDuplicate ? 'Duplicate' : 'Create')}
+              {loading ? 'Updating...' : 'Update'}
             </button>
           </div>
         </form>

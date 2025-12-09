@@ -10,12 +10,18 @@ import {
   Lock,
   Image,
   MessageSquare,
-  RotateCcw
+  RotateCcw,
+  Edit,
+  Copy,
+  Trash2
 } from 'lucide-react'
 
 interface EntityActionsMenuProps {
   entityId: string
   entityName: string
+  onDuplicate?: (entityId: string) => void
+  onEdit?: (entityId: string) => void
+  onDelete?: (entityId: string) => void
 }
 
 interface Action {
@@ -73,7 +79,7 @@ const quickActions: Action[] = [
   },
 ]
 
-export function EntityActionsMenu({ entityId, entityName }: EntityActionsMenuProps) {
+export function EntityActionsMenu({ entityId, entityName, onDuplicate, onEdit, onDelete }: EntityActionsMenuProps) {
   const [showQuickActions, setShowQuickActions] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [quickActionsPosition, setQuickActionsPosition] = useState({ top: 0, right: 0 })
@@ -196,18 +202,35 @@ export function EntityActionsMenu({ entityId, entityName }: EntityActionsMenuPro
             className="fixed w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
             style={{ top: `${moreMenuPosition.top}px`, right: `${moreMenuPosition.right}px` }}
           >
-            <button className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-              View Details
+            <button
+              onClick={() => {
+                onEdit?.(entityId)
+                setShowMoreMenu(false)
+              }}
+              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-2"
+            >
+              <Edit className="h-4 w-4" />
+              Edit
             </button>
-            <button className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-              Edit Entity
+            <button
+              onClick={() => {
+                onDuplicate?.(entityId)
+                setShowMoreMenu(false)
+              }}
+              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-2"
+            >
+              <Copy className="h-4 w-4" />
+              Duplicate
             </button>
-            <button className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-              View Dependencies
-            </button>
-            <div className="border-t border-gray-100 my-1" />
-            <button className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors">
-              Delete Entity
+            <button
+              onClick={() => {
+                onDelete?.(entityId)
+                setShowMoreMenu(false)
+              }}
+              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
             </button>
           </div>
         )}
