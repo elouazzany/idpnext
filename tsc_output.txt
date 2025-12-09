@@ -1,0 +1,30 @@
+yarn run v1.22.22
+$ /Users/elouazzany/workspace/ai/idpnext/node_modules/.bin/tsc --noEmit
+src/components/catalog/CatalogManagementPage.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/components/catalog/CatalogManagementPage.tsx(2,34): error TS6133: 'MoreVertical' is declared but its value is never read.
+src/components/catalog/CatalogManagementPage.tsx(2,62): error TS6133: 'Move' is declared but its value is never read.
+src/components/catalog/CatalogManagementPage.tsx(79,41): error TS2339: Property 'icon' does not exist on type 'CatalogFolder'.
+src/components/catalog/CatalogManagementPage.tsx(79,63): error TS2339: Property 'icon' does not exist on type 'CatalogFolder'.
+src/components/catalog/EntityActionsMenu.tsx(82,47): error TS6133: 'entityName' is declared but its value is never read.
+src/components/catalog/EntityTableView.tsx(34,44): error TS6133: 'onColumnConfig' is declared but its value is never read.
+src/components/catalog/FolderEditModal.tsx(14,45): error TS2339: Property 'icon' does not exist on type 'CatalogFolder'.
+src/components/catalog/FolderEditModal.tsx(50,17): error TS2353: Object literal may only specify known properties, and 'icon' does not exist in type 'UpdateFolderData'.
+src/components/catalog/FolderEditModal.tsx(130,40): error TS2339: Property 'icon' does not exist on type 'CatalogFolder'.
+src/components/layout/Sidebar.tsx(9,3): error TS6133: 'Box' is declared but its value is never read.
+src/components/layout/Sidebar.tsx(10,3): error TS6133: 'User' is declared but its value is never read.
+src/components/layout/Sidebar.tsx(16,3): error TS6133: 'Folder' is declared but its value is never read.
+src/main.tsx(1,1): error TS6133: 'React' is declared but its value is never read.
+src/pages/admin/DataSourcesPage.tsx(2,57): error TS6133: 'Eye' is declared but its value is never read.
+src/pages/admin/DataSourcesPage.tsx(147,35): error TS6133: 'count' is declared but its value is never read.
+src/pages/admin/DataSourcesPage.tsx(483,25): error TS6133: 'source' is declared but its value is never read.
+src/pages/CatalogPage.tsx(3,37): error TS6133: 'LayoutGrid' is declared but its value is never read.
+src/pages/CatalogPage.tsx(21,20): error TS6133: 'setViewMode' is declared but its value is never read.
+src/pages/CatalogPageView.tsx(3,71): error TS6133: 'Layers' is declared but its value is never read.
+src/pages/CatalogPageView.tsx(54,27): error TS6133: 'columnConfig' is declared but its value is never read.
+src/pages/UserProfilePage.tsx(7,23): error TS6133: 'setIsEditing' is declared but its value is never read.
+src/services/catalogPage.service.ts(233,42): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/services/catalogPage.service.ts(241,46): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/services/entity.service.ts(3,5): error TS6133: 'Entity' is declared but its value is never read.
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.

@@ -14,17 +14,20 @@ import ReactFlow, {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import {
-    Eye,
-    X,
+    EyeOff,
     Plus,
     Grid3x3,
     Network,
     Maximize2,
-    Search,
     Trash2,
     Link2,
-    Settings
+    Settings,
+    ChevronDown,
+    Search,
+    Check
 } from 'lucide-react'
+import { clsx } from 'clsx'
+import * as Popover from '@radix-ui/react-popover'
 import { BlueprintCreationModal } from '../../components/datamodel/BlueprintCreationModal'
 import { BlueprintEditorModal } from '../../components/datamodel/BlueprintEditorModal'
 import { ConfirmDeleteModal } from '../../components/datamodel/ConfirmDeleteModal'
@@ -76,6 +79,12 @@ export function DataModelPage() {
     const queryClient = useQueryClient()
     const [viewMode, setViewMode] = useState<'graph' | 'cards'>('graph')
     const [isCreationModalOpen, setIsCreationModalOpen] = useState(false)
+    const [isSelectOpen, setIsSelectOpen] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
+    const [eyeSearchQuery, setEyeSearchQuery] = useState('')
+    const [cardSearchQuery, setCardSearchQuery] = useState('')
+    const [isEyeOpen, setIsEyeOpen] = useState(false)
+    const [hiddenBlueprintIds, setHiddenBlueprintIds] = useState<Set<string>>(new Set())
     const [editingBlueprint, setEditingBlueprint] = useState<Blueprint | null>(null)
     const [blueprintToDelete, setBlueprintToDelete] = useState<Blueprint | null>(null)
 
@@ -111,9 +120,11 @@ export function DataModelPage() {
     const computedEdges = useMemo(() => {
         const relationEdges: Edge[] = [];
         blueprints.forEach((blueprint) => {
+            if (hiddenBlueprintIds.has(blueprint.identifier)) return;
+
             if (blueprint.relations && typeof blueprint.relations === 'object') {
                 Object.entries(blueprint.relations).forEach(([relationId, relation]: [string, any]) => {
-                    if (relation.target) {
+                    if (relation.target && !hiddenBlueprintIds.has(relation.target)) {
                         const edgeId = `${blueprint.identifier}-${relation.target}-${relationId}`;
                         relationEdges.push({
                             id: edgeId,
@@ -129,7 +140,7 @@ export function DataModelPage() {
         });
         return relationEdges;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [blueprintsHash])
+    }, [blueprintsHash, hiddenBlueprintIds])
 
     // Update edges only when computed edges change
     useEffect(() => {
@@ -142,26 +153,28 @@ export function DataModelPage() {
         console.log('[DataModelPage] Blueprints updated, syncing graph nodes', blueprints.length);
 
         setNodes((currentNodes) => {
-            return blueprints.map((blueprint, index) => {
-                const existingNode = currentNodes.find((n) => n.id === blueprint.identifier);
+            return blueprints
+                .filter(b => !hiddenBlueprintIds.has(b.identifier))
+                .map((blueprint, index) => {
+                    const existingNode = currentNodes.find((n) => n.id === blueprint.identifier);
 
-                // If it exists, keep its position. If not, assign initial position.
-                return {
-                    id: blueprint.identifier,
-                    type: 'custom' as const,
-                    position: existingNode ? existingNode.position : {
-                        x: 100 + (index % 3) * 300,
-                        y: 100 + Math.floor(index / 3) * 150
-                    },
-                    data: {
-                        blueprint,
-                        onMaximize: () => setEditingBlueprint(blueprint)
-                    },
-                };
-            });
+                    // If it exists, keep its position. If not, assign initial position.
+                    return {
+                        id: blueprint.identifier,
+                        type: 'custom' as const,
+                        position: existingNode ? existingNode.position : {
+                            x: 100 + (index % 3) * 300,
+                            y: 100 + Math.floor(index / 3) * 150
+                        },
+                        data: {
+                            blueprint,
+                            onMaximize: () => setEditingBlueprint(blueprint)
+                        },
+                    };
+                });
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [blueprintsHash])
+    }, [blueprintsHash, hiddenBlueprintIds])
 
     const handleCreateBlueprint = async (blueprint: Blueprint) => {
         try {
@@ -358,27 +371,191 @@ export function DataModelPage() {
             {/* Header */}
             <div className="bg-white border-b px-6 py-3 flex-shrink-0">
                 <div className="flex items-center justify-between">
-                    {/* Left side - Select dropdown */}
+                    {/* Left side - Select dropdown or Search */}
                     <div className="flex items-center gap-2">
-                        <div className="relative w-48">
-                            <select className="w-full px-3 py-1.5 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white">
-                                <option>Select</option>
-                            </select>
-                            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-                                <Search className="h-4 w-4 text-gray-400" />
+                        {viewMode === 'graph' ? (
+                            <Popover.Root open={isSelectOpen} onOpenChange={setIsSelectOpen}>
+                                <Popover.Trigger asChild>
+                                    <button
+                                        className="flex items-center justify-between w-48 px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-left text-gray-700"
+                                    >
+                                        <span className="truncate">Select Blueprint...</span>
+                                        <ChevronDown className="h-4 w-4 text-gray-400" />
+                                    </button>
+                                </Popover.Trigger>
+                                <Popover.Portal>
+                                    <Popover.Content
+                                        className="z-50 w-64 rounded-lg bg-white p-1 shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none animate-in fade-in zoom-in-95 duration-100 slide-in-from-top-2"
+                                        align="start"
+                                        sideOffset={4}
+                                    >
+                                        <div className="p-2 border-b border-gray-100">
+                                            <div className="relative">
+                                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                                                <input
+                                                    type="text"
+                                                    value={searchQuery}
+                                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                                    placeholder="Search blueprints..."
+                                                    className="w-full pl-8 pr-2 py-1.5 text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                                            <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                                Blueprints
+                                            </div>
+                                            {blueprints.filter(b => b.title.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 ? (
+                                                <div className="px-2 py-3 text-sm text-gray-500 text-center italic">
+                                                    No blueprints found
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-0.5">
+                                                    {blueprints
+                                                        .filter(b => b.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                                                        .map((blueprint) => (
+                                                            <button
+                                                                key={blueprint.identifier}
+                                                                onClick={() => {
+                                                                    setEditingBlueprint(blueprint);
+                                                                    setIsSelectOpen(false);
+                                                                    setSearchQuery('');
+                                                                }}
+                                                                className="flex w-full items-center gap-3 px-2 py-2 text-sm rounded-md text-gray-700 hover:bg-gray-100 transition-colors group"
+                                                            >
+                                                                <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-gray-50 rounded group-hover:bg-white border border-transparent group-hover:border-gray-200 transition-colors">
+                                                                    <IconDisplay name={blueprint.icon || 'box'} className="w-4 h-4 text-gray-600" />
+                                                                </div>
+                                                                <span className="truncate font-medium flex-1 text-left">
+                                                                    {blueprint.title}
+                                                                </span>
+                                                            </button>
+                                                        ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </Popover.Content>
+                                </Popover.Portal>
+                            </Popover.Root>
+                        ) : (
+                            <div className="relative w-64">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <input
+                                    type="text"
+                                    value={cardSearchQuery}
+                                    onChange={(e) => setCardSearchQuery(e.target.value)}
+                                    placeholder="Search blueprints..."
+                                    className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400"
+                                />
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     {/* Right side - Action buttons */}
                     <div className="flex items-center gap-2">
-                        <button className="p-1.5 text-gray-600 hover:bg-gray-100 rounded-md">
-                            <Eye className="h-4 w-4" />
-                        </button>
-                        <button className="p-1.5 text-gray-600 hover:bg-gray-100 rounded-md">
-                            <X className="h-4 w-4" />
-                        </button>
-                        <button
+                        {viewMode === 'graph' && (
+                            <Popover.Root open={isEyeOpen} onOpenChange={setIsEyeOpen}>
+                                <Popover.Trigger asChild>
+                                    <button className={clsx(
+                                        "p-1.5 rounded-md transition-colors",
+                                        isEyeOpen ? "bg-gray-100 text-gray-900" : "text-gray-600 hover:bg-gray-100"
+                                    )}>
+                                        <EyeOff className="h-4 w-4" />
+                                    </button>
+                                </Popover.Trigger>
+                                <Popover.Portal>
+                                    <Popover.Content
+                                        className="z-50 w-72 rounded-lg bg-white shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none animate-in fade-in zoom-in-95 duration-100 slide-in-from-top-2"
+                                        align="end"
+                                        sideOffset={4}
+                                    >
+                                        <div className="p-3 border-b border-gray-100">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="font-medium text-sm text-gray-900">Hide Blueprints</span>
+                                                <button
+                                                    onClick={() => {
+                                                        if (hiddenBlueprintIds.size === blueprints.length) {
+                                                            setHiddenBlueprintIds(new Set());
+                                                        } else {
+                                                            setHiddenBlueprintIds(new Set(blueprints.map(b => b.identifier)));
+                                                        }
+                                                    }}
+                                                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                                >
+                                                    {hiddenBlueprintIds.size === blueprints.length ? 'Show all' : 'Hide all'}
+                                                </button>
+                                            </div>
+                                            <div className="relative">
+                                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                                                <input
+                                                    type="text"
+                                                    value={eyeSearchQuery}
+                                                    onChange={(e) => setEyeSearchQuery(e.target.value)}
+                                                    placeholder="Search"
+                                                    className="w-full pl-8 pr-2 py-1.5 text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="max-h-[300px] overflow-y-auto custom-scrollbar p-1">
+                                            <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between">
+                                                <span>Shown</span>
+                                            </div>
+                                            <div className="space-y-0.5">
+                                                {blueprints
+                                                    .filter(b => b.title.toLowerCase().includes(eyeSearchQuery.toLowerCase()))
+                                                    .map((blueprint) => {
+                                                        const isHidden = hiddenBlueprintIds.has(blueprint.identifier);
+                                                        return (
+                                                            <div
+                                                                key={blueprint.identifier}
+                                                                className="flex items-center justify-between px-2 py-2 rounded-md hover:bg-gray-50 group"
+                                                            >
+                                                                <div className="flex items-center gap-3 overflow-hidden">
+                                                                    <IconDisplay name={blueprint.icon || 'box'} className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                                                                    <span className="text-sm text-gray-700 truncate font-medium">
+                                                                        {blueprint.title}
+                                                                    </span>
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const newHidden = new Set(hiddenBlueprintIds);
+                                                                        if (isHidden) {
+                                                                            newHidden.delete(blueprint.identifier);
+                                                                        } else {
+                                                                            newHidden.add(blueprint.identifier);
+                                                                        }
+                                                                        setHiddenBlueprintIds(newHidden);
+                                                                    }}
+                                                                    className={clsx(
+                                                                        "relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                                                                        !isHidden ? "bg-green-400" : "bg-gray-200"
+                                                                    )}
+                                                                >
+                                                                    <span
+                                                                        aria-hidden="true"
+                                                                        className={clsx(
+                                                                            "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out flex items-center justify-center",
+                                                                            !isHidden ? "translate-x-4" : "translate-x-0"
+                                                                        )}
+                                                                    >
+                                                                        {!isHidden && <Check className="w-2.5 h-2.5 text-green-500" strokeWidth={3} />}
+                                                                    </span>
+                                                                </button>
+                                                            </div>
+                                                        )
+                                                    })}
+                                            </div>
+                                            {blueprints.filter(b => b.title.toLowerCase().includes(eyeSearchQuery.toLowerCase())).length === 0 && (
+                                                <div className="px-2 py-4 text-center text-xs text-gray-500 italic">
+                                                    No blueprints found
+                                                </div>
+                                            )}
+                                        </div>
+                                    </Popover.Content>
+                                </Popover.Portal>
+                            </Popover.Root>
+                        )}    <button
                             onClick={() => setIsCreationModalOpen(true)}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-black rounded-md hover:bg-gray-800 transition-colors"
                         >
@@ -441,71 +618,73 @@ export function DataModelPage() {
                 ) : (
                     <div className="h-full overflow-y-auto bg-gray-50 p-8">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-[1600px] mx-auto">
-                            {blueprints.map((blueprint) => (
-                                <div
-                                    key={blueprint.identifier}
-                                    className="group bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col h-full"
-                                >
-                                    {/* Large Icon Area */}
-                                    <div className="bg-gradient-to-b from-gray-50 to-white p-6 flex items-center justify-center min-h-[120px] border-b border-gray-100 relative">
-                                        <div className="w-14 h-14 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                                            <IconDisplay name={blueprint.icon || '📦'} className="w-8 h-8 text-gray-700" />
-                                        </div>
-
-                                        {/* Quick Actions Overlay */}
-                                        <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setBlueprintToDelete(blueprint);
-                                                }}
-                                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                                                title="Delete Blueprint"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Card Content */}
-                                    <div className="p-5 flex-1 flex flex-col">
-                                        <div className="mb-4 flex-1">
-                                            <h3 className="font-semibold text-gray-900 text-base mb-1">
-                                                {blueprint.title}
-                                            </h3>
-                                            {blueprint.description ? (
-                                                <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">
-                                                    {blueprint.description}
-                                                </p>
-                                            ) : (
-                                                <p className="text-sm text-gray-400 italic">No description provided</p>
-                                            )}
-                                        </div>
-
-                                        {/* Bottom Row */}
-                                        <div className="flex items-center justify-between pt-4 border-t border-gray-50 mt-auto">
-                                            {/* Relations Count */}
-                                            <div className="flex items-center gap-1.5 text-gray-500 bg-gray-50 px-2.5 py-1 rounded-md">
-                                                <Link2 className="w-3.5 h-3.5" />
-                                                <span className="text-xs font-medium">
-                                                    {blueprint.relations && typeof blueprint.relations === 'object'
-                                                        ? Object.keys(blueprint.relations).length
-                                                        : 0} relations
-                                                </span>
+                            {blueprints
+                                .filter(b => b.title.toLowerCase().includes(cardSearchQuery.toLowerCase()))
+                                .map((blueprint) => (
+                                    <div
+                                        key={blueprint.identifier}
+                                        className="group bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col h-full"
+                                    >
+                                        {/* Large Icon Area */}
+                                        <div className="bg-gradient-to-b from-gray-50 to-white p-6 flex items-center justify-center min-h-[120px] border-b border-gray-100 relative">
+                                            <div className="w-14 h-14 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                                                <IconDisplay name={blueprint.icon || '📦'} className="w-8 h-8 text-gray-700" />
                                             </div>
 
-                                            {/* Manage Button */}
-                                            <button
-                                                onClick={() => setEditingBlueprint(blueprint)}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
-                                            >
-                                                <Settings className="w-3.5 h-3.5" />
-                                                Manage
-                                            </button>
+                                            {/* Quick Actions Overlay */}
+                                            <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setBlueprintToDelete(blueprint);
+                                                    }}
+                                                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                                    title="Delete Blueprint"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Card Content */}
+                                        <div className="p-5 flex-1 flex flex-col">
+                                            <div className="mb-4 flex-1">
+                                                <h3 className="font-semibold text-gray-900 text-base mb-1">
+                                                    {blueprint.title}
+                                                </h3>
+                                                {blueprint.description ? (
+                                                    <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">
+                                                        {blueprint.description}
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-sm text-gray-400 italic">No description provided</p>
+                                                )}
+                                            </div>
+
+                                            {/* Bottom Row */}
+                                            <div className="flex items-center justify-between pt-4 border-t border-gray-50 mt-auto">
+                                                {/* Relations Count */}
+                                                <div className="flex items-center gap-1.5 text-gray-500 bg-gray-50 px-2.5 py-1 rounded-md">
+                                                    <Link2 className="w-3.5 h-3.5" />
+                                                    <span className="text-xs font-medium">
+                                                        {blueprint.relations && typeof blueprint.relations === 'object'
+                                                            ? Object.keys(blueprint.relations).length
+                                                            : 0} relations
+                                                    </span>
+                                                </div>
+
+                                                {/* Manage Button */}
+                                                <button
+                                                    onClick={() => setEditingBlueprint(blueprint)}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
+                                                >
+                                                    <Settings className="w-3.5 h-3.5" />
+                                                    Manage
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
                         </div>
                     </div>
                 )}

@@ -28,6 +28,7 @@ import { useAuth } from '../../contexts/AuthContext'
 
 import FolderCreationModal from '../catalog/FolderCreationModal'
 import PageCreationModal from '../catalog/PageCreationModal'
+import PageEditModal from '../catalog/PageEditModal'
 
 type NavItem = {
   name: string
@@ -81,6 +82,7 @@ export function Sidebar({ refreshCatalogRef }: SidebarProps = {}) {
 
   const [showFolderModal, setShowFolderModal] = useState(false)
   const [showPageModal, setShowPageModal] = useState(false)
+  const [pageToEdit, setPageToEdit] = useState<CatalogPage | null>(null)
   const [catalogFolders, setCatalogFolders] = useState<CatalogFolder[]>([])
   const [catalogPages, setCatalogPages] = useState<CatalogPage[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -168,6 +170,11 @@ export function Sidebar({ refreshCatalogRef }: SidebarProps = {}) {
   const handlePageSuccess = () => {
     loadCatalogData()
     setShowPageModal(false)
+  }
+
+  const handlePageEditSuccess = () => {
+    loadCatalogData()
+    setPageToEdit(null)
   }
 
   const handleDeleteClick = (type: 'page' | 'folder', id: string, title: string) => {
@@ -401,8 +408,8 @@ export function Sidebar({ refreshCatalogRef }: SidebarProps = {}) {
 
   return (
     <aside className="w-48 border-r bg-gray-50/50 flex flex-col h-full">
-        {/* Search and New Button */}
-        <div className="p-3 space-y-3">
+      {/* Search and New Button */}
+      <div className="p-3 space-y-3">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
           <input
@@ -509,6 +516,14 @@ export function Sidebar({ refreshCatalogRef }: SidebarProps = {}) {
         />
       )}
 
+      {pageToEdit && (
+        <PageEditModal
+          page={pageToEdit}
+          onClose={() => setPageToEdit(null)}
+          onSuccess={handlePageEditSuccess}
+        />
+      )}
+
       <ConfirmDeleteModal
         isOpen={deleteConfirmation.isOpen}
         title={`Delete ${deleteConfirmation.type === 'page' ? 'Page' : 'Folder'}`}
@@ -532,7 +547,14 @@ export function Sidebar({ refreshCatalogRef }: SidebarProps = {}) {
           }}
         >
           <button
-            onClick={() => setContextMenu(null)}
+            onClick={() => {
+              if (contextMenu.type === 'page') {
+                const page = catalogPages.find(p => p.id === contextMenu.id) ||
+                  catalogFolders.flatMap(f => f.pages || []).find(p => p.id === contextMenu.id)
+                if (page) setPageToEdit(page)
+              }
+              setContextMenu(null)
+            }}
             className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <Edit className="h-3.5 w-3.5 text-gray-500" />
