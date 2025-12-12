@@ -228,7 +228,14 @@ export function EntityTableView({ filters, onColumnConfig, entities, groupBy = [
 
   // Render cell based on column type
   const renderCell = (entity: Entity, column: ColumnDefinition) => {
-    const value = getNestedValue(entity, column.accessor)
+    let value = getNestedValue(entity, column.accessor)
+
+    // Truncate readme property to 50 characters
+    if (column.accessor === 'readme' || column.id === 'readme' || (column.accessor.includes('.readme'))) {
+      if (typeof value === 'string' && value.length > 50) {
+        value = value.substring(0, 50) + '...'
+      }
+    }
 
     switch (column.type) {
       case 'badge':
@@ -277,7 +284,7 @@ export function EntityTableView({ filters, onColumnConfig, entities, groupBy = [
 
       case 'text':
       default:
-        if (column.id === 'lastDeployed' && value) {
+        if ((column.id === 'lastDeployed' || column.id === 'createdAt' || column.id === 'updatedAt') && value) {
           return (
             <span className="text-xs text-gray-500">
               {formatDistanceToNow(new Date(value), { addSuffix: true })}

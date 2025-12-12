@@ -13,9 +13,12 @@ const envSchema = z.object({
     GOOGLE_CLIENT_ID: z.string(),
     GOOGLE_CLIENT_SECRET: z.string(),
     GOOGLE_CALLBACK_URL: z.string(),
-    GITHUB_CLIENT_ID: z.string(),
-    GITHUB_CLIENT_SECRET: z.string(),
-    GITHUB_CALLBACK_URL: z.string(),
+    GITHUB_CLIENT_ID: z.string().optional(),
+    GITHUB_CLIENT_SECRET: z.string().optional(),
+    GITHUB_CALLBACK_URL: z.string().optional(),
+    GITHUB_APP_ID: z.string().optional(),
+    GITHUB_APP_PRIVATE_KEY: z.string().optional(),
+    GITHUB_WEBHOOK_SECRET: z.string().optional(),
     SESSION_SECRET: z.string(),
 });
 

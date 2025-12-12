@@ -24,6 +24,7 @@ import { CredentialsPage } from './pages/admin/CredentialsPage'
 import { OrganizationSettingsPage } from './pages/admin/OrganizationSettingsPage'
 import { UsersTeamsPage } from './pages/admin/UsersTeamsPage'
 import { TenantsPage } from './pages/admin/TenantsPage'
+import { GitHubSetupPage } from './pages/github/GitHubSetupPage'
 
 function App() {
   return (
@@ -35,9 +36,9 @@ function App() {
           <Route path="/auth/callback" element={<OAuthCallbackPage />} />
           <Route path="/invitations/:token" element={<InvitationAcceptPage />} />
 
-          {/* Authenticated but organization setup required */}
           <Route element={<ProtectedRoute requireOrg={false} />}>
             <Route path="/auth/setup-organization" element={<OrganizationSetupPage />} />
+            <Route path="/github/setup" element={<GitHubSetupPage />} />
           </Route>
 
           {/* Protected routes */}

@@ -10,6 +10,7 @@ import tenantsRoutes from './routes/tenants.routes.js';
 import blueprintsRoutes from './routes/blueprints.routes.js';
 import entitiesRoutes from './routes/entities.routes.js';
 import catalogRoutes from './routes/catalog.routes.js';
+import githubRoutes from './routes/github.routes.js';
 import auditLogsRoutes from './routes/audit-logs.routes.js';
 
 const app = express();
@@ -20,7 +21,20 @@ app.use(cors({
     credentials: true,
 }));
 
-app.use(express.json());
+// Extend Express Request type to include rawBody
+declare global {
+    namespace Express {
+        interface Request {
+            rawBody?: Buffer;
+        }
+    }
+}
+
+app.use(express.json({
+    verify: (req: any, res, buf) => {
+        req.rawBody = buf;
+    }
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // Session middleware (required for OAuth)
@@ -54,6 +68,7 @@ app.use('/api/tenants', tenantsRoutes);
 app.use('/api/blueprints', blueprintsRoutes);
 app.use('/api/v1', entitiesRoutes);
 app.use('/api/catalog', catalogRoutes);
+app.use('/api/github', githubRoutes);
 app.use('/api', auditLogsRoutes);
 
 // Error handling middleware
@@ -66,8 +81,15 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 const PORT = parseInt(env.PORT);
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
+// Start polling service (every hour)
+import { pollingService } from './services/polling.service.js';
+setInterval(() => {
+    console.log('⏰ Triggering scheduled sync...');
+    pollingService.syncAll().catch(err => console.error('Scheduled sync failed:', err));
+}, 60 * 60 * 1000); // 1 hour
+
+app.listen(env.PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${env.PORT}`);
     console.log(`📝 Environment: ${env.NODE_ENV}`);
     console.log(`🌐 Frontend URL: ${env.FRONTEND_URL}`);
 });

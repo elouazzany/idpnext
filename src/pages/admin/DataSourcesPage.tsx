@@ -1,5 +1,11 @@
-import { useState } from 'react'
-import { Search, Plus, MoreHorizontal, X, Copy, Filter, Eye, EyeOff, ChevronRight } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Search, Plus, MoreHorizontal, X, Copy, Filter, EyeOff, ChevronRight } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import { getAuthHeader } from '@/utils/auth'
+import { NewDataSourceModal } from '../../components/admin/NewDataSourceModal'
+import { GitHubConfigModal } from '../../components/admin/GitHubConfigModal'
+import { GitHubInstallModal } from '../../components/admin/GitHubInstallModal'
+import { RotateCw, GitPullRequest, Box } from 'lucide-react' // Import icons for badges
 
 interface DataSource {
     id: string
@@ -80,6 +86,34 @@ export function DataSourcesPage() {
     const [selectedSource, setSelectedSource] = useState<DataSource | null>(null)
     const [activeTab, setActiveTab] = useState<'ingested' | 'audit'>('ingested')
     const [activeLanguage, setActiveLanguage] = useState<'curl' | 'python' | 'javascript' | 'go'>('curl')
+    const [isNewDataSourceModalOpen, setIsNewDataSourceModalOpen] = useState(false)
+    const [isGitHubInstallModalOpen, setIsGitHubInstallModalOpen] = useState(false)
+    const [isGitHubConfigModalOpen, setIsGitHubConfigModalOpen] = useState(false)
+    const [installedExporters, setInstalledExporters] = useState<any[]>([])
+    const [isSyncing, setIsSyncing] = useState(false);
+
+    const handleSync = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isSyncing) return;
+
+        setIsSyncing(true);
+        try {
+            const response = await fetch('/api/github/sync', {
+                method: 'POST',
+                headers: getAuthHeader()
+            });
+            if (!response.ok) {
+                console.error('Sync failed');
+            }
+        } catch (err) {
+            console.error('Sync error:', err);
+        } finally {
+            // Animate for at least 1 second to show feedback
+            setTimeout(() => setIsSyncing(false), 1000);
+        }
+    };
+
+    const { currentOrganization, currentTenant } = useAuth();
 
     // Filter sources
     const filteredSources = mockDataSources.filter(source => {
@@ -97,8 +131,53 @@ export function DataSourcesPage() {
         return acc
     }, {} as Record<string, DataSource[]>)
 
+    // Fetch installed integrations
+    useEffect(() => {
+        const fetchIntegrations = async () => {
+            if (!currentOrganization) return;
+
+            try {
+                const query = new URLSearchParams({
+                    organizationId: currentOrganization.id
+                });
+                if (currentTenant) {
+                    query.append('tenantId', currentTenant.id);
+                }
+
+                const response = await fetch(`/api/github/config?${query.toString()}`, {
+                    headers: getAuthHeader()
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.installed) {
+                        setInstalledExporters([{
+                            id: data.config.installationId || 'github-app',
+                            name: `Github - ${currentOrganization.name}`, // Or org slug?
+                            icon: 'GitHub',
+                            status: 'active',
+                            category: 'Exporters',
+                            details: {
+                                services: 'Service',
+                                pullRequests: 'Pull Request'
+                            }
+                        }]);
+                    } else {
+                        setInstalledExporters([]);
+                    }
+                } else {
+                    setInstalledExporters([]);
+                }
+            } catch (err) {
+                console.error('Failed to fetch integrations:', err);
+            }
+        };
+
+        fetchIntegrations();
+    }, [currentOrganization, currentTenant]);
+
     return (
-        <div className="h-full flex flex-col -m-6 bg-white">
+        <div className="h-full flex flex-col bg-white">
             {/* Header with filters */}
             <div className="border-b bg-white">
                 <div className="px-6 py-4">
@@ -118,7 +197,10 @@ export function DataSourcesPage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
                                 </svg>
                             </button>
-                            <button className="flex items-center gap-2 px-4 py-2 text-sm bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50">
+                            <button
+                                onClick={() => setIsNewDataSourceModalOpen(true)}
+                                className="flex items-center gap-2 px-4 py-2 text-sm bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
+                            >
                                 <Plus className="h-4 w-4" />
                                 Data source
                             </button>
@@ -144,19 +226,15 @@ export function DataSourcesPage() {
                 <div className="px-6 pb-3">
                     <div className="flex items-center gap-2">
                         {categories.map((category) => {
-                            const count = category === 'All'
-                                ? mockDataSources.length
-                                : mockDataSources.filter(s => s.category === category).length
 
                             return (
                                 <button
                                     key={category}
                                     onClick={() => setSelectedCategory(category)}
-                                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                                        selectedCategory === category
-                                            ? 'bg-gray-900 text-white'
-                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    }`}
+                                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${selectedCategory === category
+                                        ? 'bg-gray-900 text-white'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
                                 >
                                     {category}
                                 </button>
@@ -165,6 +243,56 @@ export function DataSourcesPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Installed Exporters Section */}
+            {installedExporters.length > 0 && (selectedCategory === 'All' || selectedCategory === 'Exporters') && (
+                <div className="px-6 py-6 border-b border-gray-100">
+                    <h2 className="text-sm font-semibold text-gray-900 mb-4">Exporters</h2>
+                    <div className="space-y-3">
+                        {installedExporters.map((exporter) => (
+                            <div
+                                key={exporter.id}
+                                className="bg-white border boundary-gray-200 rounded-lg p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-gray-300 transition-colors"
+                                onClick={() => setIsGitHubConfigModalOpen(true)}
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 flex items-center justify-center">
+                                        <span className="text-2xl">{exporter.icon === 'GitHub' ? <svg role="img" viewBox="0 0 24 24" className="w-8 h-8" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.014 2.896-.014 3.293 0 .319.22.694.825.576C20.566 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg> : exporter.icon}</span>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                                            {exporter.name}
+                                        </h3>
+                                        <div className="flex items-center gap-3 mt-1.5">
+                                            <span className="flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-600">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                                <Box className="w-3 h-3" />
+                                                {exporter.details.services}
+                                            </span>
+                                            <span className="flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-orange-50 text-orange-700">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-orange-400"></span>
+                                                <GitPullRequest className="w-3 h-3" />
+                                                {exporter.details.pullRequests}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <span className="text-xs text-gray-500">Last catalog update: <strong>an hour ago</strong></span>
+                                    <button
+                                        onClick={handleSync}
+                                        className={`p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors ${isSyncing ? 'animate-spin text-primary-600' : ''}`}
+                                        disabled={isSyncing}
+                                        title="Trigger manual sync"
+                                    >
+                                        <RotateCw className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Data Sources Grid */}
             <div className="flex-1 overflow-y-auto">
@@ -196,13 +324,12 @@ export function DataSourcesPage() {
                                             onClick={() => setSelectedSource(source)}
                                             className="flex items-center gap-2 hover:bg-white hover:shadow-sm rounded px-2 py-1 -mx-2 -my-1 transition-all text-left"
                                         >
-                                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                                                source.status === 'active'
-                                                    ? 'bg-green-500'
-                                                    : source.status === 'waiting'
+                                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${source.status === 'active'
+                                                ? 'bg-green-500'
+                                                : source.status === 'waiting'
                                                     ? 'bg-orange-400'
                                                     : 'bg-gray-400'
-                                            }`} />
+                                                }`} />
                                             <span className="text-xs text-gray-600">{source.icon}</span>
                                             <span className="text-sm text-gray-700 truncate">{source.name}</span>
                                         </button>
@@ -243,21 +370,19 @@ export function DataSourcesPage() {
                         <div className="flex items-center gap-6 px-6 border-b">
                             <button
                                 onClick={() => setActiveTab('ingested')}
-                                className={`py-3 text-sm font-medium border-b-2 transition-colors ${
-                                    activeTab === 'ingested'
-                                        ? 'border-primary-600 text-primary-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                                }`}
+                                className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'ingested'
+                                    ? 'border-primary-600 text-primary-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                                    }`}
                             >
                                 Ingested data
                             </button>
                             <button
                                 onClick={() => setActiveTab('audit')}
-                                className={`py-3 text-sm font-medium border-b-2 transition-colors ${
-                                    activeTab === 'audit'
-                                        ? 'border-primary-600 text-primary-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                                }`}
+                                className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'audit'
+                                    ? 'border-primary-600 text-primary-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                                    }`}
                             >
                                 Audit log
                             </button>
@@ -295,11 +420,10 @@ export function DataSourcesPage() {
                                                 <button
                                                     key={lang}
                                                     onClick={() => setActiveLanguage(lang)}
-                                                    className={`px-3 py-1.5 text-xs rounded transition-colors flex items-center gap-1.5 ${
-                                                        activeLanguage === lang
-                                                            ? 'bg-primary-100 text-primary-700'
-                                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                                    }`}
+                                                    className={`px-3 py-1.5 text-xs rounded transition-colors flex items-center gap-1.5 ${activeLanguage === lang
+                                                        ? 'bg-primary-100 text-primary-700'
+                                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                        }`}
                                                 >
                                                     {lang === 'curl' && '⚡'}
                                                     {lang === 'python' && '🐍'}
@@ -475,6 +599,50 @@ export function DataSourcesPage() {
                     </div>
                 </div>
             )}
+
+            <NewDataSourceModal
+                isOpen={isNewDataSourceModalOpen}
+                onClose={() => setIsNewDataSourceModalOpen(false)}
+                onSelectSource={(sourceId) => {
+                    if (sourceId === 'github') {
+                        setIsNewDataSourceModalOpen(false)
+                        // Directly open install modal for GitHub
+                        setIsGitHubInstallModalOpen(true)
+                    }
+                }}
+            />
+
+            <GitHubInstallModal
+                isOpen={isGitHubInstallModalOpen}
+                onClose={() => setIsGitHubInstallModalOpen(false)}
+                onBack={() => {
+                    setIsGitHubInstallModalOpen(false)
+                    setIsNewDataSourceModalOpen(true)
+                }}
+                onDone={() => {
+                    setIsGitHubInstallModalOpen(false)
+                    // Simulate installation
+                    setInstalledExporters(prev => [...prev, {
+                        id: 'github-app',
+                        name: 'Github - aemyorg',
+                        icon: 'GitHub',
+                        status: 'active',
+                        category: 'Exporters',
+                        details: {
+                            services: 'Service',
+                            pullRequests: 'Pull Request'
+                        }
+                    }])
+                }}
+            />
+
+            <GitHubConfigModal
+                isOpen={isGitHubConfigModalOpen}
+                onClose={() => setIsGitHubConfigModalOpen(false)}
+                orgName="aemyorg"
+                organizationId={currentOrganization?.id || ''}
+                tenantId={currentTenant?.id}
+            />
         </div>
     )
 }

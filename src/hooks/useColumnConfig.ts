@@ -53,6 +53,31 @@ function generateColumnsFromBlueprint(blueprint: Blueprint): ColumnDefinition[] 
     })
   }
 
+  // Add standard timestamp columns
+  columns.push({
+    id: 'createdAt',
+    label: 'Created At',
+    type: 'text',
+    accessor: 'createdAt',
+    defaultVisible: false,
+    sortable: true,
+    resizable: true,
+    minWidth: 150,
+    width: 180,
+  })
+
+  columns.push({
+    id: 'updatedAt',
+    label: 'Updated At',
+    type: 'text',
+    accessor: 'updatedAt',
+    defaultVisible: false,
+    sortable: true,
+    resizable: true,
+    minWidth: 150,
+    width: 180,
+  })
+
   return columns
 }
 
@@ -190,6 +215,28 @@ export const defaultColumns: ColumnDefinition[] = [
     resizable: true,
     minWidth: 130,
     width: 150,
+  },
+  {
+    id: 'createdAt',
+    label: 'Created At',
+    type: 'text',
+    accessor: 'createdAt',
+    defaultVisible: false,
+    sortable: true,
+    resizable: true,
+    minWidth: 150,
+    width: 180,
+  },
+  {
+    id: 'updatedAt',
+    label: 'Updated At',
+    type: 'text',
+    accessor: 'updatedAt',
+    defaultVisible: false,
+    sortable: true,
+    resizable: true,
+    minWidth: 150,
+    width: 180,
   },
 ]
 

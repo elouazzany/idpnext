@@ -64,6 +64,7 @@ model Organization {
   invitations Invitation[]
   auditLogs   AuditLog[]
   blueprints  Blueprint[]
+  integrationConfigs IntegrationConfig[]
 
   @@index([slug])
 }
@@ -83,6 +84,7 @@ model Tenant {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   users        UserTenant[]
   blueprints   Blueprint[]
+  integrationConfigs IntegrationConfig[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -373,4 +375,26 @@ model AuditLog {
   @@index([action])
   @@index([triggeredAt])
   @@index([status])
+}
+
+// Integration Configuration (e.g. GitHub Mapping)
+model IntegrationConfig {
+  id             String   @id @default(cuid())
+  provider       String   // "github", "gitlab", etc.
+  installationId String?  @unique // GitHub App Installation ID
+  mappingYaml    String   @db.Text // YAML string for mapping rules
+  
+  // Relations
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  tenantId       String?
+  tenant         Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@unique([organizationId, provider, tenantId])
+  @@index([organizationId])
+  @@index([tenantId])
 }
