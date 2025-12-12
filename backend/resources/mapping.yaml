@@ -107,3 +107,179 @@ resources:
           link: .html_url
           permission: .permission
           notification_setting: .notification_setting
+
+# Issues
+- kind: issue
+  selector:
+    query: 'true'
+  port:
+    entity:
+      mappings:
+        identifier: .id|tostring
+        title: .title
+        blueprint: '"githubIssue"'
+        properties:
+          state: .state
+          assignee: .assignee.login
+          labels: '[.labels[].name]'
+          createdAt: .created_at
+          closedAt: .closed_at
+          url: .html_url
+          number: .number
+          author: .user.login
+
+# Workflow Runs
+- kind: workflow-run
+  selector:
+    query: 'true'
+  port:
+    entity:
+      mappings:
+        identifier: .id|tostring
+        title: (.name + " #" + (.run_number|tostring))
+        blueprint: '"githubWorkflowRun"'
+        properties:
+          status: .status
+          conclusion: .conclusion
+          runNumber: .run_number
+          createdAt: .created_at
+          updatedAt: .updated_at
+          url: .html_url
+          branch: .head_branch
+          event: .event
+
+# Workflows
+- kind: workflow
+  selector:
+    query: 'true'
+  port:
+    entity:
+      mappings:
+        identifier: .id|tostring
+        title: .name
+        blueprint: '"githubWorkflow"'
+        properties:
+          path: .path
+          state: .state
+          createdAt: .created_at
+          updatedAt: .updated_at
+
+# Branches
+- kind: branches
+  selector:
+    query: 'true'
+  port:
+    entity:
+      mappings:
+        identifier: .name
+        title: .name
+        blueprint: '"githubBranch"'
+        properties:
+          protected: .protected
+          commitSha: .commit.sha
+          commitUrl: .commit.url
+
+# Tags
+- kind: tags
+  selector:
+    query: 'true'
+  port:
+    entity:
+      mappings:
+        identifier: .name
+        title: .name
+        blueprint: '"githubTag"'
+        properties:
+          commitSha: .commit.sha
+          zipballUrl: .zipball_url
+          tarballUrl: .tarball_url
+
+# Releases
+- kind: releases
+  selector:
+    query: 'true'
+  port:
+    entity:
+      mappings:
+        identifier: .id|tostring
+        title: .name
+        blueprint: '"githubRelease"'
+        properties:
+          tagName: .tag_name
+          draft: .draft
+          prerelease: .prerelease
+          createdAt: .created_at
+          publishedAt: .published_at
+          url: .html_url
+          author: .author.login
+
+# Deployments
+- kind: deployment
+  selector:
+    query: 'true'
+  port:
+    entity:
+      mappings:
+        identifier: .id|tostring
+        title: (.environment + " - " + (.id|tostring))
+        blueprint: '"githubDeployment"'
+        properties:
+          task: .task
+          environment: .environment
+          ref: .ref
+          sha: .sha
+          creator: .creator.login
+          createdAt: .created_at
+          updatedAt: .updated_at
+
+# Environments
+- kind: environment
+  selector:
+    query: 'true'
+  port:
+    entity:
+      mappings:
+        identifier: .id|tostring
+        title: .name
+        blueprint: '"githubEnvironment"'
+        properties:
+          url: .url
+          protectionRules: '[.protection_rules[].type]'
+          deploymentBranchPolicy: .deployment_branch_policy.custom_branch_policies
+
+# Dependabot Alerts
+- kind: dependabot-alert
+  selector:
+    query: 'true'
+  port:
+    entity:
+      mappings:
+        identifier: .number|tostring
+        title: .security_advisory.summary
+        blueprint: '"githubDependabotAlert"'
+        properties:
+          state: .state
+          severity: .security_advisory.severity
+          package: .security_vulnerability.package.name
+          vulnerableVersionRange: .security_vulnerability.vulnerable_version_range
+          createdAt: .created_at
+          updatedAt: .updated_at
+          url: .html_url
+
+# Code Scanning Alerts
+- kind: code-scanning
+  selector:
+    query: 'true'
+  port:
+    entity:
+      mappings:
+        identifier: .number|tostring
+        title: .rule.description
+        blueprint: '"githubCodeScanning"'
+        properties:
+          state: .state
+          severity: .rule.severity
+          tool: .tool.name
+          createdAt: .created_at
+          url: .html_url
+          location: .most_recent_instance.location.path

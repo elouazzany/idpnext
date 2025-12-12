@@ -140,17 +140,45 @@ router.post('/webhook', async (req, res) => {
 // Helper function to map GitHub event types to resource kinds
 function mapEventTypeToKind(eventType: string): string | null {
     const mapping: Record<string, string> = {
+        // Repositories
         'push': 'repository',
         'repository': 'repository',
+        'create': 'repository', // Can also be branches/tags, handled by payload
+
+        // Pull Requests
         'pull_request': 'pull-request',
         'pull_request_review': 'pull-request',
+        'pull_request_review_comment': 'pull-request',
+
+        // Issues
         'issues': 'issue',
         'issue_comment': 'issue',
-        'team': 'team',
-        'member': 'team',
-        'membership': 'team',
+
+        // Workflows
         'workflow_run': 'workflow-run',
         'workflow_job': 'workflow-job',
+        'workflow_dispatch': 'workflow',
+
+        // Deployments & Environments
+        'deployment': 'deployment',
+        'deployment_status': 'deployment',
+
+        // Security
+        'dependabot_alert': 'dependabot-alert',
+        'code_scanning_alert': 'code-scanning',
+        'secret_scanning_alert': 'code-scanning',
+
+        // Teams & Users
+        'team': 'team',
+        'team_add': 'team',
+        'member': 'user',
+        'membership': 'team',
+
+        // Releases
+        'release': 'releases',
+
+        // Branch protection
+        'branch_protection_rule': 'branches',
     };
 
     return mapping[eventType] || null;
