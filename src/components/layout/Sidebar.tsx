@@ -17,11 +17,31 @@ import {
   Edit,
   Settings,
   Lock,
-  Trash2
+  Trash2,
+  GripVertical
 } from 'lucide-react'
 import { clsx } from 'clsx'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import catalogPageService from '../../services/catalogPage.service'
-import { CatalogFolder, CatalogPage } from '../../types/catalogPage'
+import { CatalogFolder, CatalogPage, ReorderItem } from '../../types/catalogPage'
 import { ConfirmDeleteModal } from '../datamodel/ConfirmDeleteModal'
 import { IconDisplay } from '../IconDisplay'
 import { useAuth } from '../../contexts/AuthContext'
@@ -94,6 +114,122 @@ export function Sidebar({ refreshCatalogRef }: SidebarProps = {}) {
     y: number
   } | null>(null)
   const contextMenuRef = useRef<HTMLDivElement>(null)
+
+  // Drag and drop state
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [activeType, setActiveType] = useState<'folder' | 'page' | null>(null)
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required to start drag
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  // Drag handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event
+    const id = active.id.toString()
+
+    // Determine if dragging a folder or page
+    const isFolder = catalogFolders.some(f => f.id === id)
+    const isPage = catalogPages.some(p => p.id === id)
+
+    setActiveId(id)
+    setActiveType(isFolder ? 'folder' : isPage ? 'page' : null)
+  }
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (!over || active.id === over.id) {
+      setActiveId(null)
+      setActiveType(null)
+      return
+    }
+
+    const activeId = active.id.toString()
+    const overId = over.id.toString()
+
+    // Handle folder reordering
+    if (activeType === 'folder') {
+      const oldIndex = catalogFolders.findIndex(f => f.id === activeId)
+      const newIndex = catalogFolders.findIndex(f => f.id === overId)
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const reorderedFolders = arrayMove(catalogFolders, oldIndex, newIndex)
+
+        // Update order property on each folder to match new position
+        const foldersWithUpdatedOrder = reorderedFolders.map((folder, index) => ({
+          ...folder,
+          order: index
+        }))
+
+        // Update UI optimistically with corrected order values
+        setCatalogFolders(foldersWithUpdatedOrder)
+
+        // Update order on server in background
+        try {
+          const reorderItems: ReorderItem[] = foldersWithUpdatedOrder.map((folder, index) => ({
+            id: folder.id,
+            order: index
+          }))
+          await catalogPageService.reorderItems(reorderItems, 'folder')
+          // Don't refresh - let the optimistic update persist
+        } catch (error) {
+          console.error('Failed to reorder folders:', error)
+          // Only reload on error to revert
+          loadCatalogData()
+        }
+      }
+    }
+
+    // Handle page reordering (root pages only)
+    if (activeType === 'page') {
+      const rootPages = catalogPages.filter(p => !p.folderId)
+      const oldIndex = rootPages.findIndex(p => p.id === activeId)
+      const newIndex = rootPages.findIndex(p => p.id === overId)
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const reorderedPages = arrayMove(rootPages, oldIndex, newIndex)
+
+        // Update order property on each page to match new position
+        const pagesWithUpdatedOrder = reorderedPages.map((page, index) => ({
+          ...page,
+          order: index
+        }))
+
+        // Merge with non-root pages
+        const nonRootPages = catalogPages.filter(p => p.folderId)
+        const allPages = [...pagesWithUpdatedOrder, ...nonRootPages]
+
+        // Update UI optimistically with corrected order values
+        setCatalogPages(allPages)
+
+        // Update order on server in background
+        try {
+          const reorderItems: ReorderItem[] = pagesWithUpdatedOrder.map((page, index) => ({
+            id: page.id,
+            order: index
+          }))
+          await catalogPageService.reorderItems(reorderItems, 'page')
+          // Don't refresh - let the optimistic update persist
+        } catch (error) {
+          console.error('Failed to reorder pages:', error)
+          // Only reload on error to revert
+          loadCatalogData()
+        }
+      }
+    }
+
+    setActiveId(null)
+    setActiveType(null)
+  }
 
   // Expose loadCatalogData function through ref
   useEffect(() => {
@@ -224,8 +360,51 @@ export function Sidebar({ refreshCatalogRef }: SidebarProps = {}) {
     }))
   }
 
+  // Sortable Folder Wrapper
+  const SortableFolderItem = ({ folder, level = 0 }: { folder: CatalogFolder; level?: number }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+      setActivatorNodeRef
+    } = useSortable({ id: folder.id })
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    }
+
+    return (
+      <div ref={setNodeRef} style={style}>
+        <FolderItem
+          folder={folder}
+          level={level}
+          dragHandleProps={{ ...attributes, ...listeners }}
+          dragHandleRef={setActivatorNodeRef}
+          isDragging={isDragging}
+        />
+      </div>
+    )
+  }
+
   // Folder Component
-  const FolderItem = ({ folder, level = 0 }: { folder: CatalogFolder; level?: number }) => {
+  const FolderItem = ({
+    folder,
+    level = 0,
+    dragHandleProps,
+    dragHandleRef,
+    isDragging = false
+  }: {
+    folder: CatalogFolder;
+    level?: number;
+    dragHandleProps?: any;
+    dragHandleRef?: (element: HTMLElement | null) => void;
+    isDragging?: boolean;
+  }) => {
     const folderKey = `catalog-folder-${folder.id}`
     const isOpen = expandedItems[folderKey]
 
@@ -234,11 +413,21 @@ export function Sidebar({ refreshCatalogRef }: SidebarProps = {}) {
         <div
           className={clsx(
             "w-full flex items-center justify-between px-2 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md group transition-colors",
-            level > 0 && "ml-2"
+            level > 0 && "ml-2",
+            isDragging && "bg-blue-50"
           )}
           style={{ paddingLeft: `${level * 0.5 + 0.5}rem` }}
         >
           <div className="flex items-center gap-1.5 flex-1">
+            {dragHandleProps && (
+              <button
+                ref={dragHandleRef}
+                {...dragHandleProps}
+                className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <GripVertical className="h-3 w-3 text-gray-400" />
+              </button>
+            )}
             <button
               onClick={() => toggleItem(folderKey)}
               className="flex items-center gap-1"
@@ -287,8 +476,51 @@ export function Sidebar({ refreshCatalogRef }: SidebarProps = {}) {
     )
   }
 
+  // Sortable Page Wrapper
+  const SortablePageItem = ({ page, level = 0 }: { page: CatalogPage; level?: number }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+      setActivatorNodeRef
+    } = useSortable({ id: page.id })
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    }
+
+    return (
+      <div ref={setNodeRef} style={style}>
+        <PageItem
+          page={page}
+          level={level}
+          dragHandleProps={{ ...attributes, ...listeners }}
+          dragHandleRef={setActivatorNodeRef}
+          isDragging={isDragging}
+        />
+      </div>
+    )
+  }
+
   // Page Component
-  const PageItem = ({ page, level = 0 }: { page: CatalogPage; level?: number }) => {
+  const PageItem = ({
+    page,
+    level = 0,
+    dragHandleProps,
+    dragHandleRef,
+    isDragging = false
+  }: {
+    page: CatalogPage;
+    level?: number;
+    dragHandleProps?: any;
+    dragHandleRef?: (element: HTMLElement | null) => void;
+    isDragging?: boolean;
+  }) => {
     return (
       <div className="group relative">
         <NavLink
@@ -298,12 +530,23 @@ export function Sidebar({ refreshCatalogRef }: SidebarProps = {}) {
               'flex items-center justify-between gap-2 py-2 rounded-md text-sm transition-colors pr-6',
               isActive
                 ? 'bg-blue-50 text-blue-600'
-                : 'text-gray-600 hover:bg-gray-100'
+                : 'text-gray-600 hover:bg-gray-100',
+              isDragging && 'bg-blue-50'
             )
           }
           style={{ paddingLeft: `${level * 0.5 + 0.5}rem` }}
         >
           <div className="flex items-center gap-2">
+            {dragHandleProps && (
+              <button
+                ref={dragHandleRef}
+                {...dragHandleProps}
+                className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => e.preventDefault()}
+              >
+                <GripVertical className="h-3 w-3 text-gray-400" />
+              </button>
+            )}
             {page.icon && <IconDisplay name={page.icon as string} className="w-4 h-4" />}
             <span className="truncate font-semibold">{page.title}</span>
           </div>
@@ -475,27 +718,70 @@ export function Sidebar({ refreshCatalogRef }: SidebarProps = {}) {
 
         {/* Catalog Folders and Pages Section */}
         {!loading && (catalogFolders.length > 0 || catalogPages.length > 0) && (
-          <>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
             {/* Folders */}
-            {catalogFolders
-              .filter(folder => {
-                if (!searchQuery) return true
-                const matchesFolder = folder.title.toLowerCase().includes(searchQuery.toLowerCase())
-                const matchesPage = folder.pages?.some(p =>
-                  p.title.toLowerCase().includes(searchQuery.toLowerCase())
-                )
-                return matchesFolder || matchesPage
-              })
-              .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-              .map(folder => <FolderItem key={folder.id} folder={folder} />)}
+            <SortableContext
+              items={catalogFolders.map(f => f.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {catalogFolders
+                .filter(folder => {
+                  if (!searchQuery) return true
+                  const matchesFolder = folder.title.toLowerCase().includes(searchQuery.toLowerCase())
+                  const matchesPage = folder.pages?.some(p =>
+                    p.title.toLowerCase().includes(searchQuery.toLowerCase())
+                  )
+                  return matchesFolder || matchesPage
+                })
+                .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                .map(folder => <SortableFolderItem key={folder.id} folder={folder} />)}
+            </SortableContext>
 
             {/* Root Pages */}
-            {catalogPages
-              .filter(page => !page.folderId)
-              .filter(page => !searchQuery || page.title.toLowerCase().includes(searchQuery.toLowerCase()))
-              .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-              .map(page => <PageItem key={page.id} page={page} />)}
-          </>
+            <SortableContext
+              items={catalogPages.filter(p => !p.folderId).map(p => p.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {catalogPages
+                .filter(page => !page.folderId)
+                .filter(page => !searchQuery || page.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                .map(page => <SortablePageItem key={page.id} page={page} />)}
+            </SortableContext>
+
+            <DragOverlay>
+              {activeId && activeType === 'folder' && (
+                <div className="bg-white shadow-lg rounded-md p-2 opacity-90">
+                  <div className="flex items-center gap-2">
+                    <Folder className="h-4 w-4 text-gray-600" />
+                    <span className="text-sm font-semibold">
+                      {catalogFolders.find(f => f.id === activeId)?.title}
+                    </span>
+                  </div>
+                </div>
+              )}
+              {activeId && activeType === 'page' && (
+                <div className="bg-white shadow-lg rounded-md p-2 opacity-90">
+                  <div className="flex items-center gap-2">
+                    {catalogPages.find(p => p.id === activeId)?.icon && (
+                      <IconDisplay
+                        name={catalogPages.find(p => p.id === activeId)?.icon as string}
+                        className="w-4 h-4"
+                      />
+                    )}
+                    <span className="text-sm font-semibold">
+                      {catalogPages.find(p => p.id === activeId)?.title}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
         )}
 
         {bottomNavigation.map((item, index) => renderItem(item, [index + topNavigation.length]))}

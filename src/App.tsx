@@ -6,7 +6,6 @@ import { OAuthCallbackPage } from './pages/OAuthCallbackPage'
 import { InvitationAcceptPage } from './pages/InvitationAcceptPage'
 import { OrganizationSetupPage } from './pages/OrganizationSetupPage'
 import { MainLayout } from './components/layout/MainLayout'
-import { CatalogPage } from './pages/CatalogPage'
 import { CatalogPageView } from './pages/CatalogPageView'
 import { SelfServicePage } from './pages/SelfServicePage'
 import { EnvironmentsPage } from './pages/EnvironmentsPage'
@@ -47,7 +46,6 @@ function App() {
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/profile" element={<UserProfilePage />} />
-              <Route path="/catalog" element={<CatalogPage />} />
               <Route path="/catalog/:pageId" element={<CatalogPageView />} />
               <Route path="/self-service" element={<SelfServicePage />} />
               <Route path="/environments" element={<EnvironmentsPage />} />

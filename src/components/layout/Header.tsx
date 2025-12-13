@@ -4,16 +4,70 @@ import { clsx } from 'clsx'
 import { UserMenu } from './UserMenu'
 import { TenantSelector } from './TenantSelector'
 import { useAuth } from '@/contexts/AuthContext'
+import { useState, useEffect } from 'react'
+import catalogPageService from '@/services/catalogPage.service'
 
 const navItems = [
   { name: 'Home', href: '/dashboard', icon: Home },
-  { name: 'Catalog', href: '/catalog', icon: Database },
   { name: 'Self-service', href: '/self-service', icon: Rocket },
 ]
 
-export function Header() {
+interface HeaderProps {
+  refreshCatalogRef?: React.MutableRefObject<(() => void) | null>
+}
+
+export function Header({ refreshCatalogRef }: HeaderProps = {}) {
   const navigate = useNavigate()
   const { isAuthenticated, currentOrganization } = useAuth()
+  const [firstCatalogPageId, setFirstCatalogPageId] = useState<string | null>(null)
+
+  // Load first catalog page
+  const loadFirstCatalogPage = async () => {
+    try {
+      const [foldersRes, pagesRes] = await Promise.all([
+        catalogPageService.getFolderTree(),
+        catalogPageService.getAllPages()
+      ])
+
+      // Find first page - check folders first (in order), then root pages
+      if (foldersRes.ok && foldersRes.tree.length > 0) {
+        const sortedFolders = [...foldersRes.tree].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+
+        for (const folder of sortedFolders) {
+          if (folder.pages && folder.pages.length > 0) {
+            const sortedPages = [...folder.pages].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+            setFirstCatalogPageId(sortedPages[0].id)
+            return
+          }
+        }
+      }
+
+      // If no pages in folders, check root pages
+      if (pagesRes.ok && pagesRes.pages.length > 0) {
+        const rootPages = pagesRes.pages
+          .filter(page => !page.folderId)
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+
+        if (rootPages.length > 0) {
+          setFirstCatalogPageId(rootPages[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load first catalog page:', error)
+    }
+  }
+
+  // Expose loadFirstCatalogPage function through ref
+  useEffect(() => {
+    if (refreshCatalogRef) {
+      refreshCatalogRef.current = loadFirstCatalogPage
+    }
+  }, [refreshCatalogRef])
+
+  // Load on mount
+  useEffect(() => {
+    loadFirstCatalogPage()
+  }, [])
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white">
@@ -62,6 +116,21 @@ export function Header() {
                 {item.name}
               </NavLink>
             ))}
+            {/* Catalog link - dynamically points to first catalog page */}
+            <NavLink
+              to={firstCatalogPageId ? `/catalog/${firstCatalogPageId}` : '/catalog'}
+              className={({ isActive }) =>
+                clsx(
+                  'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                )
+              }
+            >
+              <Database className="h-4 w-4" />
+              Catalog
+            </NavLink>
           </nav>
         </div>
 
